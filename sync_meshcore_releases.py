@@ -105,6 +105,8 @@ def display_name(raw: str) -> str:
 
 def build_manifest(download: bool) -> dict[str, Any]:
     releases = fetch_releases()
+    mode = "sync + manifest update" if download else "manifest-only"
+    print(f"Fetched {len(releases)} releases from {REPO} ({mode} mode).")
     catalog: dict[str, Any] = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_repository": REPO,
@@ -115,14 +117,25 @@ def build_manifest(download: bool) -> dict[str, Any]:
 
     downloaded_count = 0
     skipped_existing = 0
+    skipped_missing = 0
     unmatched_assets: list[str] = []
+    added_paths: list[str] = []
 
     for release in releases:
         release_tag = release.get("tag_name", "")
         release_name = release.get("name", "")
         published_at = release.get("published_at", "")
+        release_assets = release.get("assets", [])
+        release_downloaded = 0
+        release_existing = 0
+        release_missing = 0
+        release_unmatched = 0
+        print(
+            f"Processing release {release_tag or '(untagged)'}"
+            f" with {len(release_assets)} assets..."
+        )
 
-        for asset in release.get("assets", []):
+        for asset in release_assets:
             name = asset.get("name", "")
             if not name.lower().endswith(".bin"):
                 continue
@@ -130,6 +143,7 @@ def build_manifest(download: bool) -> dict[str, Any]:
             parsed = parse_asset(name)
             if not parsed:
                 unmatched_assets.append(name)
+                release_unmatched += 1
                 continue
 
             board = parsed["board"]
@@ -145,8 +159,16 @@ def build_manifest(download: bool) -> dict[str, Any]:
             )
             if sync_state == "downloaded":
                 downloaded_count += 1
+                release_downloaded += 1
+                added_paths.append(relative_path.as_posix())
             elif sync_state == "existing":
                 skipped_existing += 1
+                release_existing += 1
+            else:
+                skipped_missing += 1
+                release_missing += 1
+                # Don't include files that are not present locally in the manifest.
+                continue
 
             address = "0x0000" if image_type == "merged_full_flash" else "0x10000"
             checksum = sha256_file(destination) if destination.exists() else ""
@@ -186,10 +208,19 @@ def build_manifest(download: bool) -> dict[str, Any]:
                 "sha256": checksum,
                 "download_url": asset.get("browser_download_url", ""),
             }
+        print(
+            "  release summary:"
+            f" downloaded={release_downloaded},"
+            f" existing={release_existing},"
+            f" missing_local={release_missing},"
+            f" unmatched={release_unmatched}"
+        )
 
     catalog["stats"] = {
         "downloaded": downloaded_count,
         "skipped_existing": skipped_existing,
+        "skipped_missing": skipped_missing,
+        "added_paths": added_paths,
         "missing_local_files": sum(
             1
             for board in catalog["boards"].values()
@@ -220,13 +251,31 @@ def main() -> int:
         print(f"Failed to fetch releases: {error}", file=sys.stderr)
         return 1
 
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
     stats = manifest["stats"]
-    print(f"Manifest updated: {MANIFEST_PATH}")
+    manifest_written = True
+    if args.manifest_only and not manifest["boards"] and MANIFEST_PATH.exists():
+        manifest_written = False
+        print(
+            "No local firmware files were found in --manifest-only mode; "
+            f"keeping existing manifest at {MANIFEST_PATH} so UI selectors stay populated."
+        )
+    else:
+        MANIFEST_PATH.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    print(f"Manifest {'updated' if manifest_written else 'kept'}: {MANIFEST_PATH}")
     print(f"Downloaded: {stats['downloaded']}")
     print(f"Skipped existing: {stats['skipped_existing']}")
+    print(f"Skipped missing local files: {stats['skipped_missing']}")
     print(f"Missing local files: {stats['missing_local_files']}")
+    if stats["added_paths"]:
+        print("Added files this run:")
+        for path in stats["added_paths"]:
+            print(f"  + {path}")
+    else:
+        print("Added files this run: none")
     if stats["unmatched_assets"]:
         print(f"Skipped unmatched assets: {len(stats['unmatched_assets'])}")
 
