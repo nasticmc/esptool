@@ -10,9 +10,19 @@ const disconnectFlasherBtn = document.getElementById("disconnectFlasher");
 const progressBar = document.getElementById("progress");
 const logArea = document.getElementById("log");
 
+const boardSelect = document.getElementById("boardSelect");
+const firmwareSelect = document.getElementById("firmwareSelect");
+const versionSelect = document.getElementById("versionSelect");
+const imageTypeSelect = document.getElementById("imageTypeSelect");
+const selectionHint = document.getElementById("selectionHint");
+
 const connectSerialBtn = document.getElementById("connectSerial");
 const disconnectSerialBtn = document.getElementById("disconnectSerial");
 const clearConsoleBtn = document.getElementById("clearConsole");
+const serialInput = document.getElementById("serialInput");
+const sendSerialBtn = document.getElementById("sendSerial");
+const insertWifiSsidBtn = document.getElementById("insertWifiSsid");
+const insertWifiPwdBtn = document.getElementById("insertWifiPwd");
 const consoleArea = document.getElementById("console");
 
 let esploader = null;
@@ -21,7 +31,10 @@ let flasherPort = null;
 
 let serialPort = null;
 let serialReader = null;
+let serialWriter = null;
 let serialKeepReading = false;
+
+let firmwareCatalog = null;
 
 const logger = {
   clean() {
@@ -45,6 +58,12 @@ function appendConsole(message) {
   consoleArea.scrollTop = consoleArea.scrollHeight;
 }
 
+function setSerialConnected(connected) {
+  connectSerialBtn.disabled = connected;
+  disconnectSerialBtn.disabled = !connected;
+  sendSerialBtn.disabled = !connected;
+}
+
 function ensureWebSerial() {
   if (!navigator.serial) {
     throw new Error("Web Serial API not available. Use latest Chrome or Edge.");
@@ -56,7 +75,7 @@ function getAddress() {
   const normalized = raw.startsWith("0x") ? raw.slice(2) : raw;
   const value = Number.parseInt(normalized, 16);
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Invalid flash address. Example: 0x1000");
+    throw new Error("Invalid flash address. Example: 0x10000 or 0x0");
   }
   return value;
 }
@@ -67,6 +86,161 @@ function setFlasherConnected(connected) {
   disconnectFlasherBtn.disabled = !connected;
   connectFlasherBtn.disabled = connected;
 }
+
+function setOptions(select, options, preferredValue) {
+  const current = preferredValue ?? select.value;
+  select.innerHTML = "";
+
+  for (const option of options) {
+    const element = document.createElement("option");
+    element.value = option.value;
+    element.textContent = option.label;
+    select.appendChild(element);
+  }
+
+  if (!options.length) {
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "No options available";
+    select.appendChild(empty);
+    select.disabled = true;
+    return;
+  }
+
+  select.disabled = false;
+  if (current && options.some((option) => option.value === current)) {
+    select.value = current;
+  }
+}
+
+function getSelectedImageInfo() {
+  if (!firmwareCatalog?.boards) {
+    return null;
+  }
+
+  const board = firmwareCatalog.boards[boardSelect.value];
+  const firmware = board?.firmwares?.[firmwareSelect.value];
+  const version = firmware?.versions?.[versionSelect.value];
+  const image = version?.images?.[imageTypeSelect.value];
+
+  if (!board || !firmware || !version || !image) {
+    return null;
+  }
+
+  return {
+    boardKey: boardSelect.value,
+    boardName: board.display_name,
+    firmwareKey: firmwareSelect.value,
+    firmwareName: firmware.display_name,
+    versionKey: versionSelect.value,
+    imageType: imageTypeSelect.value,
+    ...image,
+  };
+}
+
+function updateSelectionHint() {
+  const imageInfo = getSelectedImageInfo();
+  if (!imageInfo) {
+    selectionHint.textContent = "No manifest-backed firmware selected. You can still use manual file override.";
+    return;
+  }
+
+  selectionHint.textContent = `Selected: ${imageInfo.boardName} / ${imageInfo.firmwareName} / ${imageInfo.versionKey} / ${imageInfo.imageType}`;
+}
+
+function refreshImageTypes() {
+  if (!firmwareCatalog?.boards) {
+    setOptions(imageTypeSelect, []);
+    updateSelectionHint();
+    return;
+  }
+
+  const version = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[firmwareSelect.value]?.versions?.[versionSelect.value];
+  const imageKeys = Object.keys(version?.images ?? {}).sort();
+  const imageOptions = imageKeys.map((key) => ({
+    value: key,
+    label: key === "merged_full_flash" ? "Merged full flash" : "Normal app .bin",
+  }));
+
+  setOptions(imageTypeSelect, imageOptions);
+
+  const imageInfo = getSelectedImageInfo();
+  if (imageInfo?.address) {
+    addressInput.value = imageInfo.address;
+  }
+
+  updateSelectionHint();
+}
+
+function refreshVersions() {
+  if (!firmwareCatalog?.boards) {
+    setOptions(versionSelect, []);
+    refreshImageTypes();
+    return;
+  }
+
+  const firmware = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[firmwareSelect.value];
+  const versionKeys = Object.keys(firmware?.versions ?? {}).sort((a, b) => b.localeCompare(a));
+  const versionOptions = versionKeys.map((key) => ({ value: key, label: key }));
+
+  setOptions(versionSelect, versionOptions);
+  refreshImageTypes();
+}
+
+function refreshFirmwares() {
+  if (!firmwareCatalog?.boards) {
+    setOptions(firmwareSelect, []);
+    refreshVersions();
+    return;
+  }
+
+  const board = firmwareCatalog.boards?.[boardSelect.value];
+  const firmwareKeys = Object.keys(board?.firmwares ?? {}).sort();
+  const firmwareOptions = firmwareKeys.map((key) => ({
+    value: key,
+    label: board.firmwares[key].display_name,
+  }));
+
+  setOptions(firmwareSelect, firmwareOptions);
+  refreshVersions();
+}
+
+function populateBoardSelect() {
+  if (!firmwareCatalog?.boards) {
+    setOptions(boardSelect, []);
+    refreshFirmwares();
+    return;
+  }
+
+  const boardKeys = Object.keys(firmwareCatalog.boards).sort();
+  const boardOptions = boardKeys.map((key) => ({
+    value: key,
+    label: firmwareCatalog.boards[key].display_name,
+  }));
+  setOptions(boardSelect, boardOptions);
+  refreshFirmwares();
+}
+
+async function loadFirmwareManifest() {
+  try {
+    const response = await fetch("./firmwares/manifest.json", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    firmwareCatalog = await response.json();
+    appendLog(`Loaded firmware manifest for ${Object.keys(firmwareCatalog.boards ?? {}).length} boards.`);
+  } catch (error) {
+    firmwareCatalog = null;
+    appendLog(`Manifest unavailable (${error.message ?? error}). Manual file upload remains available.`);
+  }
+
+  populateBoardSelect();
+}
+
+boardSelect.addEventListener("change", refreshFirmwares);
+firmwareSelect.addEventListener("change", refreshVersions);
+versionSelect.addEventListener("change", refreshImageTypes);
+imageTypeSelect.addEventListener("change", refreshImageTypes);
 
 connectFlasherBtn.addEventListener("click", async () => {
   try {
@@ -89,12 +263,33 @@ connectFlasherBtn.addEventListener("click", async () => {
   }
 });
 
-flashBtn.addEventListener("click", async () => {
-  const file = firmwareInput.files?.[0];
-  if (!file) {
-    appendLog("Select a .bin firmware file first.");
-    return;
+async function resolveFirmwareToFlash() {
+  const selectedImage = getSelectedImageInfo();
+  if (selectedImage) {
+    const response = await fetch(`./firmwares/${selectedImage.path}`, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch selected firmware (${response.status})`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return {
+      name: selectedImage.file_name,
+      bytes: new Uint8Array(arrayBuffer),
+    };
   }
+
+  const manualFile = firmwareInput.files?.[0];
+  if (!manualFile) {
+    throw new Error("Select a manifest firmware or choose a manual .bin file first.");
+  }
+
+  const buffer = await manualFile.arrayBuffer();
+  return {
+    name: manualFile.name,
+    bytes: new Uint8Array(buffer),
+  };
+}
+
+flashBtn.addEventListener("click", async () => {
   if (!esploader) {
     appendLog("Connect flasher first.");
     return;
@@ -102,14 +297,13 @@ flashBtn.addEventListener("click", async () => {
 
   try {
     progressBar.value = 0;
-    const buffer = await file.arrayBuffer();
-    const firmware = new Uint8Array(buffer);
+    const firmware = await resolveFirmwareToFlash();
     const address = getAddress();
 
-    appendLog(`Flashing ${file.name} (${firmware.byteLength} bytes) at 0x${address.toString(16)}...`);
+    appendLog(`Flashing ${firmware.name} (${firmware.bytes.byteLength} bytes) at 0x${address.toString(16)}...`);
 
     await esploader.writeFlash({
-      fileArray: [{ data: firmware, address }],
+      fileArray: [{ data: firmware.bytes, address }],
       flashMode: "keep",
       flashFreq: "keep",
       flashSize: "keep",
@@ -173,13 +367,15 @@ connectSerialBtn.addEventListener("click", async () => {
     await serialPort.open({ baudRate: 115200 });
 
     serialKeepReading = true;
-    connectSerialBtn.disabled = true;
-    disconnectSerialBtn.disabled = false;
+    setSerialConnected(true);
     appendConsole("\n[Serial connected]\n");
 
     const decoder = new TextDecoderStream();
     serialPort.readable.pipeTo(decoder.writable).catch(() => {});
     serialReader = decoder.readable.getReader();
+    const encoder = new TextEncoderStream();
+    encoder.readable.pipeTo(serialPort.writable).catch(() => {});
+    serialWriter = encoder.writable.getWriter();
 
     while (serialKeepReading) {
       const { value, done } = await serialReader.read();
@@ -205,6 +401,47 @@ clearConsoleBtn.addEventListener("click", () => {
   consoleArea.value = "";
 });
 
+async function sendSerialText(text) {
+  if (!serialWriter) {
+    appendConsole("\n[Serial not connected]\n");
+    return;
+  }
+
+  const payload = text.endsWith("\n") ? text : `${text}\n`;
+  await serialWriter.write(payload);
+  appendConsole(`\n> ${text}\n`);
+}
+
+sendSerialBtn.addEventListener("click", async () => {
+  const text = serialInput.value.trim();
+  if (!text) {
+    return;
+  }
+  try {
+    await sendSerialText(text);
+  } catch (error) {
+    appendConsole(`\n[Serial send failed: ${error.message ?? error}]\n`);
+  }
+});
+
+serialInput.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  sendSerialBtn.click();
+});
+
+insertWifiSsidBtn.addEventListener("click", () => {
+  serialInput.value = "set wifi.ssid ";
+  serialInput.focus();
+});
+
+insertWifiPwdBtn.addEventListener("click", () => {
+  serialInput.value = "set wifi.pwd ";
+  serialInput.focus();
+});
+
 async function safelyDisconnectSerial() {
   serialKeepReading = false;
   if (serialReader) {
@@ -217,6 +454,16 @@ async function safelyDisconnectSerial() {
   }
   serialReader = null;
 
+  if (serialWriter) {
+    try {
+      await serialWriter.close();
+      serialWriter.releaseLock();
+    } catch {
+      // Ignore cleanup errors.
+    }
+  }
+  serialWriter = null;
+
   if (serialPort) {
     try {
       await serialPort.close();
@@ -226,6 +473,7 @@ async function safelyDisconnectSerial() {
   }
   serialPort = null;
 
-  connectSerialBtn.disabled = false;
-  disconnectSerialBtn.disabled = true;
+  setSerialConnected(false);
 }
+
+loadFirmwareManifest();

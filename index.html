@@ -26,26 +26,46 @@
         padding: 1rem;
         margin-bottom: 1rem;
       }
-      h1, h2 { margin: 0 0 .8rem; }
+      h1,
+      h2 {
+        margin: 0 0 0.8rem;
+      }
       .grid {
         display: grid;
-        gap: .75rem;
-        grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       }
-      label { display: block; font-size: .92rem; margin-bottom: .25rem; }
-      input, select, button {
+      label {
+        display: block;
+        font-size: 0.92rem;
+        margin-bottom: 0.25rem;
+      }
+      input,
+      select,
+      button {
         width: 100%;
         box-sizing: border-box;
         background: #0d1117;
         color: #e6edf3;
         border: 1px solid #30363d;
         border-radius: 8px;
-        padding: .55rem .65rem;
+        padding: 0.55rem 0.65rem;
       }
-      button { cursor: pointer; }
-      button:disabled { opacity: .6; cursor: not-allowed; }
-      .actions { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: .5rem; margin-top: .75rem; }
-      #log, #console {
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      #log,
+      #console {
         width: 100%;
         min-height: 180px;
         resize: vertical;
@@ -53,30 +73,54 @@
         color: #a7f3d0;
         border: 1px solid #30363d;
         border-radius: 8px;
-        padding: .65rem;
+        padding: 0.65rem;
         box-sizing: border-box;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
-      #console { min-height: 260px; }
-      .hint { color: #9da7b3; font-size: .9rem; }
-      progress { width: 100%; margin-top: .5rem; }
+      #console {
+        min-height: 260px;
+      }
+      .hint {
+        color: #9da7b3;
+        font-size: 0.9rem;
+      }
+      progress {
+        width: 100%;
+        margin-top: 0.5rem;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>ESP32 Web Flasher</h1>
-      <p class="hint">Use Chrome/Edge with Web Serial support. Firmware should be a valid ESP32 binary image.</p>
+      <p class="hint">Use Chrome/Edge with Web Serial support.</p>
 
       <section class="panel">
         <h2>Flashing</h2>
         <div class="grid">
           <div>
-            <label for="firmware">Firmware file (.bin)</label>
+            <label for="boardSelect">Board</label>
+            <select id="boardSelect"></select>
+          </div>
+          <div>
+            <label for="firmwareSelect">Firmware</label>
+            <select id="firmwareSelect"></select>
+          </div>
+          <div>
+            <label for="versionSelect">Version</label>
+            <select id="versionSelect"></select>
+          </div>
+          <div>
+            <label for="imageTypeSelect">Image type</label>
+            <select id="imageTypeSelect"></select>
+          </div>
+          <div>
+            <label for="firmware">Manual firmware file override (.bin)</label>
             <input id="firmware" type="file" accept=".bin,application/octet-stream" />
           </div>
           <div>
             <label for="address">Flash address (hex)</label>
-            <input id="address" type="text" value="0x1000" />
+            <input id="address" type="text" value="0x10000" />
           </div>
           <div>
             <label for="baud">Baud rate</label>
@@ -87,6 +131,7 @@
             </select>
           </div>
         </div>
+        <p class="hint" id="selectionHint"></p>
         <div class="actions">
           <button id="connectFlasher">Connect Flasher</button>
           <button id="flashBtn" disabled>Flash Firmware</button>
@@ -103,6 +148,24 @@
           <button id="connectSerial">Connect Serial</button>
           <button id="disconnectSerial" disabled>Disconnect Serial</button>
           <button id="clearConsole">Clear Console</button>
+        </div>
+        <div class="grid" style="margin-top: 0.75rem">
+          <div>
+            <label for="serialInput">Serial command/input</label>
+            <input id="serialInput" type="text" placeholder="Type command and click Send" />
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="sendSerial" disabled>Send</button>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="insertWifiSsid">Insert: set wifi.ssid</button>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="insertWifiPwd">Insert: set wifi.pwd</button>
+          </div>
         </div>
         <textarea id="console" readonly></textarea>
       </section>
