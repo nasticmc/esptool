@@ -1,6 +1,7 @@
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.6.0/bundle.js";
 
 const flashBtn = document.getElementById("flashBtn");
+const downloadFirmwareBtn = document.getElementById("downloadFirmwareBtn");
 const eraseBtn = document.getElementById("eraseBtn");
 const disconnectFlasherBtn = document.getElementById("disconnectFlasher");
 const progressBar = document.getElementById("progress");
@@ -363,6 +364,29 @@ async function resolveFirmwareToFlash() {
   throw new Error("Select a firmware from the dropdowns first.");
 }
 
+async function downloadSelectedFirmware() {
+  const selectedImage = getSelectedImageInfo();
+  if (!selectedImage) {
+    throw new Error("Select a firmware from the dropdowns first.");
+  }
+
+  const response = await fetch(`./firmwares/${selectedImage.path}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch selected firmware (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = selectedImage.file_name || "firmware.bin";
+    link.click();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 flashBtn.addEventListener("click", async () => {
   try {
     await connectFlasherIfNeeded();
@@ -390,6 +414,16 @@ flashBtn.addEventListener("click", async () => {
     appendLog("Flash complete. Device reset.");
   } catch (error) {
     appendLog(`Flash failed: ${error.message ?? error}`);
+  }
+});
+
+downloadFirmwareBtn.addEventListener("click", async () => {
+  try {
+    await downloadSelectedFirmware();
+    const selectedImage = getSelectedImageInfo();
+    appendLog(`Downloaded ${selectedImage?.file_name ?? "selected firmware"}.`);
+  } catch (error) {
+    appendLog(`Download failed: ${error.message ?? error}`);
   }
 });
 
