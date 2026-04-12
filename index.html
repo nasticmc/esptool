@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESP32 Web Flasher + Serial Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #101317;
+        color: #e6edf3;
+      }
+      main {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem 2rem;
+      }
+      .panel {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      h1, h2 { margin: 0 0 .8rem; }
+      .grid {
+        display: grid;
+        gap: .75rem;
+        grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+      }
+      label { display: block; font-size: .92rem; margin-bottom: .25rem; }
+      input, select, button {
+        width: 100%;
+        box-sizing: border-box;
+        background: #0d1117;
+        color: #e6edf3;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: .55rem .65rem;
+      }
+      button { cursor: pointer; }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+      .actions { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: .5rem; margin-top: .75rem; }
+      #log, #console {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        background: #0d1117;
+        color: #a7f3d0;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: .65rem;
+        box-sizing: border-box;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #console { min-height: 260px; }
+      .hint { color: #9da7b3; font-size: .9rem; }
+      progress { width: 100%; margin-top: .5rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ESP32 Web Flasher</h1>
+      <p class="hint">Use Chrome/Edge with Web Serial support. Firmware should be a valid ESP32 binary image.</p>
+
+      <section class="panel">
+        <h2>Flashing</h2>
+        <div class="grid">
+          <div>
+            <label for="firmware">Firmware file (.bin)</label>
+            <input id="firmware" type="file" accept=".bin,application/octet-stream" />
+          </div>
+          <div>
+            <label for="address">Flash address (hex)</label>
+            <input id="address" type="text" value="0x1000" />
+          </div>
+          <div>
+            <label for="baud">Baud rate</label>
+            <select id="baud">
+              <option>115200</option>
+              <option selected>460800</option>
+              <option>921600</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="connectFlasher">Connect Flasher</button>
+          <button id="flashBtn" disabled>Flash Firmware</button>
+          <button id="eraseBtn" disabled>Full Erase Device</button>
+          <button id="disconnectFlasher" disabled>Disconnect Flasher</button>
+        </div>
+        <progress id="progress" value="0" max="100"></progress>
+        <textarea id="log" readonly></textarea>
+      </section>
+
+      <section class="panel">
+        <h2>Serial Console</h2>
+        <div class="actions">
+          <button id="connectSerial">Connect Serial</button>
+          <button id="disconnectSerial" disabled>Disconnect Serial</button>
+          <button id="clearConsole">Clear Console</button>
+        </div>
+        <textarea id="console" readonly></textarea>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
