@@ -1,7 +1,9 @@
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.6.0/bundle.js";
 
 const firmwareInput = document.getElementById("firmware");
+const addressGroup = document.getElementById("addressGroup");
 const addressInput = document.getElementById("address");
+const addressHint = document.getElementById("addressHint");
 const baudSelect = document.getElementById("baud");
 const connectFlasherBtn = document.getElementById("connectFlasher");
 const flashBtn = document.getElementById("flashBtn");
@@ -138,14 +140,45 @@ function getSelectedImageInfo() {
   };
 }
 
+function hasManualFirmware() {
+  return Boolean(firmwareInput.files?.[0]);
+}
+
 function updateSelectionHint() {
+  if (hasManualFirmware()) {
+    const file = firmwareInput.files[0];
+    selectionHint.textContent = `Manual firmware override selected: ${file.name}`;
+    return;
+  }
+
   const imageInfo = getSelectedImageInfo();
   if (!imageInfo) {
-    selectionHint.textContent = "No manifest-backed firmware selected. You can still use manual file override.";
+    selectionHint.textContent = "No manifest-backed firmware selected. Upload a custom .bin firmware to continue.";
     return;
   }
 
   selectionHint.textContent = `Selected: ${imageInfo.boardName} / ${imageInfo.firmwareName} / ${imageInfo.versionKey} / ${imageInfo.imageType}`;
+}
+
+function updateAddressControl() {
+  const imageInfo = getSelectedImageInfo();
+
+  if (hasManualFirmware()) {
+    addressGroup.classList.remove("hidden");
+    addressInput.disabled = false;
+    addressHint.textContent = "Custom firmware uploaded. You can choose the flash address.";
+    return;
+  }
+
+  addressGroup.classList.add("hidden");
+  addressInput.disabled = true;
+
+  if (imageInfo?.address) {
+    addressInput.value = imageInfo.address;
+    addressHint.textContent = `Using manifest flash address: ${imageInfo.address}`;
+  } else {
+    addressHint.textContent = "Upload a custom firmware to choose a flash address.";
+  }
 }
 
 function refreshImageTypes() {
@@ -165,11 +198,12 @@ function refreshImageTypes() {
   setOptions(imageTypeSelect, imageOptions);
 
   const imageInfo = getSelectedImageInfo();
-  if (imageInfo?.address) {
+  if (imageInfo?.address && !hasManualFirmware()) {
     addressInput.value = imageInfo.address;
   }
 
   updateSelectionHint();
+  updateAddressControl();
 }
 
 function refreshVersions() {
@@ -241,6 +275,10 @@ boardSelect.addEventListener("change", refreshFirmwares);
 firmwareSelect.addEventListener("change", refreshVersions);
 versionSelect.addEventListener("change", refreshImageTypes);
 imageTypeSelect.addEventListener("change", refreshImageTypes);
+firmwareInput.addEventListener("change", () => {
+  updateSelectionHint();
+  updateAddressControl();
+});
 
 connectFlasherBtn.addEventListener("click", async () => {
   try {
@@ -264,6 +302,15 @@ connectFlasherBtn.addEventListener("click", async () => {
 });
 
 async function resolveFirmwareToFlash() {
+  const manualFile = firmwareInput.files?.[0];
+  if (manualFile) {
+    const buffer = await manualFile.arrayBuffer();
+    return {
+      name: manualFile.name,
+      bytes: new Uint8Array(buffer),
+    };
+  }
+
   const selectedImage = getSelectedImageInfo();
   if (selectedImage) {
     const response = await fetch(`./firmwares/${selectedImage.path}`, { cache: "no-store" });
@@ -277,16 +324,7 @@ async function resolveFirmwareToFlash() {
     };
   }
 
-  const manualFile = firmwareInput.files?.[0];
-  if (!manualFile) {
-    throw new Error("Select a manifest firmware or choose a manual .bin file first.");
-  }
-
-  const buffer = await manualFile.arrayBuffer();
-  return {
-    name: manualFile.name,
-    bytes: new Uint8Array(buffer),
-  };
+  throw new Error("Select a manifest firmware or choose a manual .bin file first.");
 }
 
 flashBtn.addEventListener("click", async () => {
