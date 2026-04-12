@@ -114,8 +114,9 @@ function getSelectedImageInfo() {
     return null;
   }
 
+  const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
   const board = firmwareCatalog.boards[boardSelect.value];
-  const firmware = board?.firmwares?.[firmwareSelect.value];
+  const firmware = board?.firmwares?.[selectedFirmwareKey];
   const version = firmware?.versions?.[versionSelect.value];
   const image = version?.images?.[imageTypeSelect.value];
 
@@ -126,12 +127,26 @@ function getSelectedImageInfo() {
   return {
     boardKey: boardSelect.value,
     boardName: board.display_name,
-    firmwareKey: firmwareSelect.value,
+    firmwareKey: selectedFirmwareKey,
     firmwareName: firmware.display_name,
     versionKey: versionSelect.value,
     imageType: imageTypeSelect.value,
     ...image,
   };
+}
+
+function normalizeFirmwareId(value = "") {
+  return String(value).trim().toLowerCase();
+}
+
+function getFirmwareKeyForBoard(boardKey, firmwareId) {
+  const firmwares = firmwareCatalog?.boards?.[boardKey]?.firmwares;
+  if (!firmwares) {
+    return null;
+  }
+
+  const normalizedId = normalizeFirmwareId(firmwareId);
+  return Object.keys(firmwares).find((firmwareKey) => normalizeFirmwareId(firmwareKey) === normalizedId) ?? null;
 }
 
 
@@ -202,7 +217,8 @@ function refreshImageTypes() {
     return;
   }
 
-  const version = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[firmwareSelect.value]?.versions?.[versionSelect.value];
+  const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
+  const version = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[selectedFirmwareKey]?.versions?.[versionSelect.value];
   const imageKeys = Object.keys(version?.images ?? {}).sort();
   const imageOptions = imageKeys.map((key) => ({
     value: key,
@@ -220,49 +236,68 @@ function refreshVersions() {
     return;
   }
 
-  const firmware = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[firmwareSelect.value];
+  const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
+  const firmware = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[selectedFirmwareKey];
   const versionKeys = Object.keys(firmware?.versions ?? {}).sort((a, b) => b.localeCompare(a));
   const versionOptions = versionKeys.map((key) => ({
     value: key,
-    label: getVersionLabel(key, firmware?.versions?.[key], firmwareSelect.value),
+    label: getVersionLabel(key, firmware?.versions?.[key], selectedFirmwareKey),
   }));
 
   setOptions(versionSelect, versionOptions);
   refreshImageTypes();
 }
 
-function refreshFirmwares() {
+function refreshBoards() {
   if (!firmwareCatalog?.boards) {
-    setOptions(firmwareSelect, []);
+    setOptions(boardSelect, []);
     refreshVersions();
     return;
   }
 
-  const board = firmwareCatalog.boards?.[boardSelect.value];
-  const firmwareKeys = Object.keys(board?.firmwares ?? {}).sort();
-  const firmwareOptions = firmwareKeys.map((key) => ({
-    value: key,
-    label: normalizeFirmwareLabel(key, board.firmwares[key].display_name),
-  }));
+  const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
+  const boardKeys = Object.keys(firmwareCatalog.boards)
+    .filter((boardKey) => {
+      if (!selectedFirmwareId) {
+        return true;
+      }
+      const boardFirmwareKeys = Object.keys(firmwareCatalog.boards?.[boardKey]?.firmwares ?? {});
+      return boardFirmwareKeys.some((firmwareKey) => normalizeFirmwareId(firmwareKey) === selectedFirmwareId);
+    })
+    .sort();
 
-  setOptions(firmwareSelect, firmwareOptions);
-  refreshVersions();
-}
-
-function populateBoardSelect() {
-  if (!firmwareCatalog?.boards) {
-    setOptions(boardSelect, []);
-    refreshFirmwares();
-    return;
-  }
-
-  const boardKeys = Object.keys(firmwareCatalog.boards).sort();
   const boardOptions = boardKeys.map((key) => ({
     value: key,
     label: firmwareCatalog.boards[key].display_name,
   }));
+
   setOptions(boardSelect, boardOptions);
-  refreshFirmwares();
+  refreshVersions();
+}
+
+function populateFirmwareSelect() {
+  if (!firmwareCatalog?.boards) {
+    setOptions(firmwareSelect, []);
+    refreshBoards();
+    return;
+  }
+
+  const firmwareOptionsById = new Map();
+  for (const board of Object.values(firmwareCatalog.boards)) {
+    for (const [firmwareKey, firmware] of Object.entries(board?.firmwares ?? {})) {
+      const firmwareId = normalizeFirmwareId(firmwareKey);
+      if (!firmwareOptionsById.has(firmwareId)) {
+        firmwareOptionsById.set(firmwareId, {
+          value: firmwareId,
+          label: normalizeFirmwareLabel(firmwareKey, firmware.display_name),
+        });
+      }
+    }
+  }
+
+  const firmwareOptions = [...firmwareOptionsById.values()].sort((a, b) => a.label.localeCompare(b.label));
+  setOptions(firmwareSelect, firmwareOptions);
+  refreshBoards();
 }
 
 async function loadFirmwareManifest() {
@@ -278,11 +313,11 @@ async function loadFirmwareManifest() {
     appendLog(`Manifest unavailable (${error.message ?? error}).`);
   }
 
-  populateBoardSelect();
+  populateFirmwareSelect();
 }
 
-boardSelect.addEventListener("change", refreshFirmwares);
-firmwareSelect.addEventListener("change", refreshVersions);
+boardSelect.addEventListener("change", refreshVersions);
+firmwareSelect.addEventListener("change", refreshBoards);
 versionSelect.addEventListener("change", refreshImageTypes);
 imageTypeSelect.addEventListener("change", refreshImageTypes);
 async function connectFlasherIfNeeded() {
