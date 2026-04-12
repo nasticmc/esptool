@@ -223,15 +223,10 @@ function populateBoardSelect() {
 
 async function loadFirmwareManifest() {
   try {
-    const manifestUrl = "./firmwares/manifest.json";
-    let response = await fetch(manifestUrl, { cache: "no-cache" });
-    if (response.status === 304) {
-      response = await fetch(manifestUrl, { cache: "force-cache" });
-    }
+    const response = await fetch("./firmwares/manifest.json", { cache: "reload" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-
     firmwareCatalog = await response.json();
     appendLog(`Loaded firmware manifest for ${Object.keys(firmwareCatalog.boards ?? {}).length} boards.`);
   } catch (error) {
