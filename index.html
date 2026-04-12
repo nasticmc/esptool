@@ -143,17 +143,7 @@
             <label for="imageTypeSelect">Image type</label>
             <select id="imageTypeSelect"></select>
           </div>
-          <div>
-            <label for="firmware">Manual firmware file override (.bin)</label>
-            <input id="firmware" type="file" accept=".bin,application/octet-stream" />
-          </div>
-          <div id="addressGroup" class="hidden">
-            <label for="address">Flash address (hex)</label>
-            <input id="address" type="text" value="0x10000" />
-          </div>
         </div>
-        <p class="hint" id="selectionHint"></p>
-        <p class="hint" id="addressHint"></p>
         <div class="actions">
           <button id="flashBtn">Flash Firmware</button>
           <button id="eraseBtn">Full Erase Device</button>
