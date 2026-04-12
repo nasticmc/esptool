@@ -4,8 +4,6 @@ const firmwareInput = document.getElementById("firmware");
 const addressGroup = document.getElementById("addressGroup");
 const addressInput = document.getElementById("address");
 const addressHint = document.getElementById("addressHint");
-const baudSelect = document.getElementById("baud");
-const connectFlasherBtn = document.getElementById("connectFlasher");
 const flashBtn = document.getElementById("flashBtn");
 const eraseBtn = document.getElementById("eraseBtn");
 const disconnectFlasherBtn = document.getElementById("disconnectFlasher");
@@ -37,6 +35,9 @@ let serialWriter = null;
 let serialKeepReading = false;
 
 let firmwareCatalog = null;
+
+const FLASH_BAUD_RATE = 921600;
+const SERIAL_BAUD_RATE = 115200;
 
 const logger = {
   clean() {
@@ -83,10 +84,7 @@ function getAddress() {
 }
 
 function setFlasherConnected(connected) {
-  flashBtn.disabled = !connected;
-  eraseBtn.disabled = !connected;
   disconnectFlasherBtn.disabled = !connected;
-  connectFlasherBtn.disabled = connected;
 }
 
 function setOptions(select, options, preferredValue) {
@@ -140,6 +138,58 @@ function getSelectedImageInfo() {
   };
 }
 
+
+function toTitleCase(words) {
+  return words
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function normalizeFirmwareLabel(firmwareKey, displayName = "") {
+  const source = `${firmwareKey} ${displayName}`.toLowerCase();
+  if (source.includes("repeater") && source.includes("mqtt")) {
+    return "Repeater Mqtt";
+  }
+  if (source.includes("companion") && source.includes("wifi") && source.includes("radio")) {
+    return "Companion Wifi Radio";
+  }
+
+  const cleaned = (displayName || firmwareKey || "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return toTitleCase(cleaned.split(/\s+/));
+}
+
+function getVersionLabel(versionKey, version = {}) {
+  const candidates = [
+    version.eastmesh_version,
+    version.meshcore_version,
+    version.release_name,
+    version.release_tag,
+    versionKey,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const match = String(candidate).match(/[vV]\d+(?:\.\d+)+/);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return versionKey;
+}
+
+function getImageTypeLabel(typeKey) {
+  if (typeKey === "app_bin") {
+    return "Update";
+  }
+  if (typeKey === "merged_full_flash") {
+    return "Full Flash";
+  }
+  return toTitleCase(typeKey.replace(/[_-]+/g, " ").split(/\s+/));
+}
+
 function hasManualFirmware() {
   return Boolean(firmwareInput.files?.[0]);
 }
@@ -157,7 +207,7 @@ function updateSelectionHint() {
     return;
   }
 
-  selectionHint.textContent = `Selected: ${imageInfo.boardName} / ${imageInfo.firmwareName} / ${imageInfo.versionKey} / ${imageInfo.imageType}`;
+  selectionHint.textContent = `Selected: ${imageInfo.boardName} / ${normalizeFirmwareLabel(imageInfo.firmwareKey, imageInfo.firmwareName)} / ${getVersionLabel(imageInfo.versionKey, imageInfo)} / ${getImageTypeLabel(imageInfo.imageType)}`;
 }
 
 function updateAddressControl() {
@@ -192,7 +242,7 @@ function refreshImageTypes() {
   const imageKeys = Object.keys(version?.images ?? {}).sort();
   const imageOptions = imageKeys.map((key) => ({
     value: key,
-    label: key === "merged_full_flash" ? "Merged full flash" : "Normal app .bin",
+    label: getImageTypeLabel(key),
   }));
 
   setOptions(imageTypeSelect, imageOptions);
@@ -215,7 +265,10 @@ function refreshVersions() {
 
   const firmware = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[firmwareSelect.value];
   const versionKeys = Object.keys(firmware?.versions ?? {}).sort((a, b) => b.localeCompare(a));
-  const versionOptions = versionKeys.map((key) => ({ value: key, label: key }));
+  const versionOptions = versionKeys.map((key) => ({
+    value: key,
+    label: getVersionLabel(key, firmware?.versions?.[key]),
+  }));
 
   setOptions(versionSelect, versionOptions);
   refreshImageTypes();
@@ -232,7 +285,7 @@ function refreshFirmwares() {
   const firmwareKeys = Object.keys(board?.firmwares ?? {}).sort();
   const firmwareOptions = firmwareKeys.map((key) => ({
     value: key,
-    label: board.firmwares[key].display_name,
+    label: normalizeFirmwareLabel(key, board.firmwares[key].display_name),
   }));
 
   setOptions(firmwareSelect, firmwareOptions);
@@ -280,26 +333,31 @@ firmwareInput.addEventListener("change", () => {
   updateAddressControl();
 });
 
-connectFlasherBtn.addEventListener("click", async () => {
+async function connectFlasherIfNeeded() {
+  if (esploader) {
+    return;
+  }
+
   try {
     ensureWebSerial();
     flasherPort = await navigator.serial.requestPort();
     transport = new Transport(flasherPort, true);
     esploader = new ESPLoader({
       transport,
-      baudrate: Number(baudSelect.value),
+      baudrate: FLASH_BAUD_RATE,
       terminal: logger,
       debugLogging: false,
     });
 
     const chip = await esploader.main();
-    appendLog(`Connected to ${chip}`);
+    appendLog(`Connected to ${chip} at ${FLASH_BAUD_RATE} baud.`);
     setFlasherConnected(true);
   } catch (error) {
     appendLog(`Connect failed: ${error.message ?? error}`);
     await safelyDisconnectFlasher();
+    throw error;
   }
-});
+}
 
 async function resolveFirmwareToFlash() {
   const manualFile = firmwareInput.files?.[0];
@@ -328,12 +386,8 @@ async function resolveFirmwareToFlash() {
 }
 
 flashBtn.addEventListener("click", async () => {
-  if (!esploader) {
-    appendLog("Connect flasher first.");
-    return;
-  }
-
   try {
+    await connectFlasherIfNeeded();
     progressBar.value = 0;
     const firmware = await resolveFirmwareToFlash();
     const address = getAddress();
@@ -362,12 +416,8 @@ flashBtn.addEventListener("click", async () => {
 });
 
 eraseBtn.addEventListener("click", async () => {
-  if (!esploader) {
-    appendLog("Connect flasher first.");
-    return;
-  }
-
   try {
+    await connectFlasherIfNeeded();
     progressBar.value = 0;
     appendLog("Starting full chip erase. This may take a while...");
     await esploader.eraseFlash();
@@ -402,11 +452,11 @@ connectSerialBtn.addEventListener("click", async () => {
   try {
     ensureWebSerial();
     serialPort = await navigator.serial.requestPort();
-    await serialPort.open({ baudRate: 115200 });
+    await serialPort.open({ baudRate: SERIAL_BAUD_RATE });
 
     serialKeepReading = true;
     setSerialConnected(true);
-    appendConsole("\n[Serial connected]\n");
+    appendConsole(`\n[Serial connected at ${SERIAL_BAUD_RATE} baud]\n`);
 
     const decoder = new TextDecoderStream();
     serialPort.readable.pipeTo(decoder.writable).catch(() => {});
