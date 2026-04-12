@@ -169,16 +169,9 @@ function getVersionLabel(versionKey, version = {}, firmwareKey = "") {
   const isRepeaterFirmware = String(firmwareKey || "").toLowerCase().includes("repeater");
   if (isRepeaterFirmware) {
     for (const candidate of candidates) {
-      const match = String(candidate).match(/[vV]\d+(?:\.\d+)+/);
-      if (!match) {
-        continue;
-      }
-
-      const suffix = String(candidate)
-        .slice((match.index ?? 0) + match[0].length)
-        .replace(/^[^a-zA-Z0-9]+/, "");
-      if (suffix) {
-        return suffix;
+      const combinedMatch = String(candidate).match(/[vV]\d+(?:\.\d+)+-eastmesh-[vV]\d+(?:\.\d+)+/);
+      if (combinedMatch) {
+        return combinedMatch[0].toLowerCase();
       }
     }
   }
