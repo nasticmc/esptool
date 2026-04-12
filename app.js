@@ -223,7 +223,7 @@ function populateBoardSelect() {
 
 async function loadFirmwareManifest() {
   try {
-    const response = await fetch("./firmwares/manifest.json", { cache: "reload" });
+    const response = await fetch(`./firmwares/manifest.json?v=${Date.now()}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
