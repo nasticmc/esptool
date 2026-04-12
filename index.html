@@ -10,6 +10,7 @@
         --accent-primary: #36a167;
         --accent-hover: #49c27d;
         --accent-strong: #2f8f4e;
+        --accent-strong-hover: #3fae61;
         --surface-base: #222222;
         --surface-panel: #303030;
         --surface-control: #343434;
@@ -70,14 +71,14 @@
       }
       button {
         cursor: pointer;
-        background: var(--accent-primary);
-        border-color: var(--accent-primary);
+        background: var(--accent-strong);
+        border-color: var(--accent-strong);
         color: #f6fff9;
         transition: background-color 120ms ease;
       }
       button:hover:not(:disabled) {
-        background: var(--accent-hover);
-        border-color: var(--accent-hover);
+        background: var(--accent-strong-hover);
+        border-color: var(--accent-strong-hover);
       }
       button:disabled {
         opacity: 0.6;
@@ -117,6 +118,31 @@
       .hidden {
         display: none;
       }
+      .button-link {
+        display: inline-block;
+        width: 100%;
+        box-sizing: border-box;
+        background: var(--accent-strong);
+        color: #f6fff9;
+        border: 1px solid var(--accent-strong);
+        border-radius: 8px;
+        padding: 0.55rem 0.65rem;
+        text-decoration: none;
+        text-align: center;
+        transition: background-color 120ms ease, border-color 120ms ease;
+      }
+      .button-link:hover {
+        background: var(--accent-strong-hover);
+        border-color: var(--accent-strong-hover);
+      }
+      .button-link:focus-visible {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--focus-ring);
+        outline: none;
+      }
+      .serial-link {
+        margin-bottom: 0.8rem;
+      }
     </style>
   </head>
   <body>
@@ -154,6 +180,9 @@
       </section>
 
       <section class="panel">
+        <a class="button-link serial-link" href="https://config.meshcore.io/" target="_blank" rel="noopener noreferrer">
+          Open MeshCore Config
+        </a>
         <h2>Serial Console</h2>
         <div class="actions">
           <button id="connectSerial">Connect Serial</button>
