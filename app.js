@@ -3,7 +3,6 @@ import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.6.0/bundle.
 const flashBtn = document.getElementById("flashBtn");
 const downloadFirmwareBtn = document.getElementById("downloadFirmwareBtn");
 const eraseBtn = document.getElementById("eraseBtn");
-const disconnectFlasherBtn = document.getElementById("disconnectFlasher");
 const progressBar = document.getElementById("progress");
 const logArea = document.getElementById("log");
 
@@ -78,10 +77,6 @@ function getAddress() {
     throw new Error(`Invalid manifest flash address: ${imageInfo?.address ?? raw}`);
   }
   return value;
-}
-
-function setFlasherConnected(connected) {
-  disconnectFlasherBtn.disabled = !connected;
 }
 
 function setOptions(select, options, preferredValue) {
@@ -339,7 +334,6 @@ async function connectFlasherIfNeeded() {
 
     const chip = await esploader.main();
     appendLog(`Connected to ${chip} at ${FLASH_BAUD_RATE} baud.`);
-    setFlasherConnected(true);
   } catch (error) {
     appendLog(`Connect failed: ${error.message ?? error}`);
     await safelyDisconnectFlasher();
@@ -412,6 +406,8 @@ flashBtn.addEventListener("click", async () => {
     await esploader.after("hard_reset");
     progressBar.value = 100;
     appendLog("Flash complete. Device reset.");
+    await safelyDisconnectFlasher();
+    appendLog("Flasher disconnected.");
   } catch (error) {
     appendLog(`Flash failed: ${error.message ?? error}`);
   }
@@ -441,13 +437,7 @@ eraseBtn.addEventListener("click", async () => {
   }
 });
 
-disconnectFlasherBtn.addEventListener("click", async () => {
-  await safelyDisconnectFlasher();
-  appendLog("Flasher disconnected.");
-});
-
 async function safelyDisconnectFlasher() {
-  setFlasherConnected(false);
   esploader = null;
   if (transport) {
     try {
