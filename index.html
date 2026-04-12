@@ -7,12 +7,22 @@
     <style>
       :root {
         color-scheme: dark;
+        --accent-primary: #36a167;
+        --accent-hover: #49c27d;
+        --accent-strong: #2f8f4e;
+        --surface-base: #222222;
+        --surface-panel: #303030;
+        --surface-control: #343434;
+        --border-color: #3d454d;
+        --text-primary: #e6eaf0;
+        --text-secondary: #9aa4b2;
+        --focus-ring: rgba(54, 161, 103, 0.35);
         font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       }
       body {
         margin: 0;
-        background: #101317;
-        color: #e6edf3;
+        background: var(--surface-base);
+        color: var(--text-primary);
       }
       main {
         max-width: 900px;
@@ -20,8 +30,8 @@
         padding: 0 1rem 2rem;
       }
       .panel {
-        background: #161b22;
-        border: 1px solid #30363d;
+        background: var(--surface-panel);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem;
         margin-bottom: 1rem;
@@ -45,14 +55,29 @@
       button {
         width: 100%;
         box-sizing: border-box;
-        background: #0d1117;
-        color: #e6edf3;
-        border: 1px solid #30363d;
+        background: var(--surface-control);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 0.55rem 0.65rem;
       }
+      input:focus,
+      select:focus,
+      button:focus-visible {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--focus-ring);
+        outline: none;
+      }
       button {
         cursor: pointer;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+        color: #f6fff9;
+        transition: background-color 120ms ease;
+      }
+      button:hover:not(:disabled) {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
       }
       button:disabled {
         opacity: 0.6;
@@ -69,9 +94,9 @@
         width: 100%;
         min-height: 180px;
         resize: vertical;
-        background: #0d1117;
+        background: var(--surface-control);
         color: #a7f3d0;
-        border: 1px solid #30363d;
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 0.65rem;
         box-sizing: border-box;
@@ -81,12 +106,16 @@
         min-height: 260px;
       }
       .hint {
-        color: #9da7b3;
+        color: var(--text-secondary);
         font-size: 0.9rem;
       }
       progress {
         width: 100%;
         margin-top: 0.5rem;
+        accent-color: var(--accent-primary);
+      }
+      .hidden {
+        display: none;
       }
     </style>
   </head>
@@ -118,7 +147,7 @@
             <label for="firmware">Manual firmware file override (.bin)</label>
             <input id="firmware" type="file" accept=".bin,application/octet-stream" />
           </div>
-          <div>
+          <div id="addressGroup" class="hidden">
             <label for="address">Flash address (hex)</label>
             <input id="address" type="text" value="0x10000" />
           </div>
@@ -132,6 +161,7 @@
           </div>
         </div>
         <p class="hint" id="selectionHint"></p>
+        <p class="hint" id="addressHint"></p>
         <div class="actions">
           <button id="connectFlasher">Connect Flasher</button>
           <button id="flashBtn" disabled>Flash Firmware</button>
