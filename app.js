@@ -16,8 +16,12 @@ const disconnectSerialBtn = document.getElementById("disconnectSerial");
 const clearConsoleBtn = document.getElementById("clearConsole");
 const serialInput = document.getElementById("serialInput");
 const sendSerialBtn = document.getElementById("sendSerial");
-const insertWifiSsidBtn = document.getElementById("insertWifiSsid");
-const insertWifiPwdBtn = document.getElementById("insertWifiPwd");
+const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
+const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
+const quickGetWifiStatusBtn = document.getElementById("quickGetWifiStatus");
+const quickGetWebStatusBtn = document.getElementById("quickGetWebStatus");
+const quickSetWebOnBtn = document.getElementById("quickSetWebOn");
+const quickSetWebOffBtn = document.getElementById("quickSetWebOff");
 const consoleArea = document.getElementById("console");
 
 let esploader = null;
@@ -524,14 +528,33 @@ serialInput.addEventListener("keydown", async (event) => {
   sendSerialBtn.click();
 });
 
-insertWifiSsidBtn.addEventListener("click", () => {
-  serialInput.value = "set wifi.ssid ";
+function setSerialInputCommand(command) {
+  serialInput.value = `${command} `;
   serialInput.focus();
+}
+
+quickSetWifiSsidBtn.addEventListener("click", () => {
+  setSerialInputCommand("set wifi.ssid");
 });
 
-insertWifiPwdBtn.addEventListener("click", () => {
-  serialInput.value = "set wifi.pwd ";
-  serialInput.focus();
+quickSetWifiPwdBtn.addEventListener("click", () => {
+  setSerialInputCommand("set wifi.pwd");
+});
+
+quickGetWifiStatusBtn.addEventListener("click", () => {
+  setSerialInputCommand("get wifi.status");
+});
+
+quickGetWebStatusBtn.addEventListener("click", () => {
+  setSerialInputCommand("get web.status");
+});
+
+quickSetWebOnBtn.addEventListener("click", () => {
+  setSerialInputCommand("set web on");
+});
+
+quickSetWebOffBtn.addEventListener("click", () => {
+  setSerialInputCommand("set web off");
 });
 
 async function safelyDisconnectSerial() {

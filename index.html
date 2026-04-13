@@ -148,6 +148,16 @@
       .serial-link {
         margin-bottom: 0.8rem;
       }
+      .quick-commands {
+        margin-top: 0.75rem;
+      }
+      .quick-commands h3 {
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
     </style>
   </head>
   <body>
@@ -203,13 +213,16 @@
             <label>&nbsp;</label>
             <button id="sendSerial" disabled>Send</button>
           </div>
-          <div>
-            <label>&nbsp;</label>
-            <button id="insertWifiSsid">Insert: set wifi.ssid</button>
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button id="insertWifiPwd">Insert: set wifi.pwd</button>
+        </div>
+        <div class="quick-commands">
+          <h3>Quick Commands</h3>
+          <div class="actions">
+            <button id="quickSetWifiSsid">set wifi.ssid</button>
+            <button id="quickSetWifiPwd">set wifi.pwd</button>
+            <button id="quickGetWifiStatus">get wifi.status</button>
+            <button id="quickGetWebStatus">get web.status</button>
+            <button id="quickSetWebOn">set web on</button>
+            <button id="quickSetWebOff">set web off</button>
           </div>
         </div>
         <textarea id="console" readonly></textarea>
