@@ -315,7 +315,6 @@ async function loadFirmwareManifest() {
 boardSelect.addEventListener("change", refreshVersions);
 firmwareSelect.addEventListener("change", refreshBoards);
 versionSelect.addEventListener("change", refreshImageTypes);
-imageTypeSelect.addEventListener("change", refreshImageTypes);
 async function connectFlasherIfNeeded() {
   if (esploader) {
     return;
@@ -432,6 +431,8 @@ eraseBtn.addEventListener("click", async () => {
     await esploader.after("hard_reset");
     progressBar.value = 100;
     appendLog("Full erase complete.");
+    await safelyDisconnectFlasher();
+    appendLog("Flasher disconnected.");
   } catch (error) {
     appendLog(`Erase failed: ${error.message ?? error}`);
   }
@@ -509,6 +510,7 @@ sendSerialBtn.addEventListener("click", async () => {
   }
   try {
     await sendSerialText(text);
+    serialInput.value = "";
   } catch (error) {
     appendConsole(`\n[Serial send failed: ${error.message ?? error}]\n`);
   }

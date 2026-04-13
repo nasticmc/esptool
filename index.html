@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ESP32 Web Flasher + Serial Console</title>
+    <title>EastMesh ESP32 Flasher</title>
+    <link rel="icon" type="image/png" href="./favicon.png" />
     <style>
       :root {
         color-scheme: dark;
@@ -37,7 +38,11 @@
         padding: 1rem;
         margin-bottom: 1rem;
       }
-      h1,
+      h1 {
+        margin: 0 0 0.8rem;
+        white-space: nowrap;
+        font-size: clamp(1.25rem, 5vw, 2rem);
+      }
       h2 {
         margin: 0 0 0.8rem;
       }
@@ -147,7 +152,7 @@
   </head>
   <body>
     <main>
-      <h1>EastMesh ESP32 Flasher</h1>
+      <h1><span style="color: var(--accent-strong)">EastMesh</span> ESP32 Flasher</h1>
       <p class="hint">Use Chrome/Edge with Web Serial support.</p>
 
       <section class="panel">
