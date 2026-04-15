@@ -814,7 +814,7 @@ quickSetWebOffBtn.addEventListener("click", () => {
 });
 
 quickGetWebStatusBtn.addEventListener("click", () => {
-  setSerialInputCommand("get web status");
+  setSerialInputCommand("get web.status");
 });
 
 quickGetWifiStatusBtn.addEventListener("click", () => {
