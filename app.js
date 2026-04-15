@@ -22,6 +22,7 @@ const disconnectSerialBtn = document.getElementById("disconnectSerial");
 const clearConsoleBtn = document.getElementById("clearConsole");
 const serialInput = document.getElementById("serialInput");
 const sendSerialBtn = document.getElementById("sendSerial");
+const repeaterConfigLink = document.getElementById("repeaterConfigLink");
 const wifiConfigSection = document.getElementById("wifiConfigSection");
 const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
 const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
@@ -146,17 +147,33 @@ function normalizeFirmwareId(value = "") {
 
 function selectedFirmwareSupportsWifi() {
   const firmwareLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "").toLowerCase();
-  const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
-  const source = `${selectedFirmwareKey ?? ""} ${firmwareLabel}`;
+  const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
+  const source = `${selectedFirmwareId} ${firmwareLabel}`;
   return source.includes("wifi");
 }
 
+function selectedFirmwareIsRepeater() {
+  const firmwareLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "").toLowerCase();
+  const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
+  const source = `${selectedFirmwareId} ${firmwareLabel}`;
+  return source.includes("repeater");
+}
+
 function updateContextualSections() {
-  if (selectedFirmwareSupportsWifi()) {
+  const showWifiConfig = selectedFirmwareSupportsWifi();
+  const showRepeaterConfigLink = selectedFirmwareIsRepeater() && !showWifiConfig;
+
+  if (showWifiConfig) {
     wifiConfigSection.classList.remove("hidden");
-    return;
+  } else {
+    wifiConfigSection.classList.add("hidden");
   }
-  wifiConfigSection.classList.add("hidden");
+
+  if (showRepeaterConfigLink) {
+    repeaterConfigLink.classList.remove("hidden");
+  } else {
+    repeaterConfigLink.classList.add("hidden");
+  }
 }
 
 function getFirmwareKeyForBoard(boardKey, firmwareId) {
