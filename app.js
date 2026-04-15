@@ -24,8 +24,11 @@ const serialInput = document.getElementById("serialInput");
 const sendSerialBtn = document.getElementById("sendSerial");
 const repeaterConfigLink = document.getElementById("repeaterConfigLink");
 const wifiConfigSection = document.getElementById("wifiConfigSection");
+const repeaterQuickSetSection = document.getElementById("repeaterQuickSetSection");
 const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
 const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
+const quickSetRepeaterWifiSsidBtn = document.getElementById("quickSetRepeaterWifiSsid");
+const quickSetRepeaterWifiPwdBtn = document.getElementById("quickSetRepeaterWifiPwd");
 const consoleArea = document.getElementById("console");
 
 let esploader = null;
@@ -145,28 +148,56 @@ function normalizeFirmwareId(value = "") {
   return String(value).trim().toLowerCase();
 }
 
-function selectedFirmwareSupportsWifi() {
-  const firmwareLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "").toLowerCase();
+function getSelectedFirmwareMetadata() {
+  const selectedBoardKey = boardSelect.value;
   const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
-  const source = `${selectedFirmwareId} ${firmwareLabel}`;
+  const boardFirmwares = firmwareCatalog?.boards?.[selectedBoardKey]?.firmwares;
+
+  if (boardFirmwares) {
+    const matchingEntry = Object.entries(boardFirmwares).find(([firmwareKey]) => normalizeFirmwareId(firmwareKey) === selectedFirmwareId);
+    if (matchingEntry) {
+      const [firmwareKey, firmware] = matchingEntry;
+      return {
+        key: firmwareKey,
+        displayName: firmware?.display_name ?? "",
+      };
+    }
+  }
+
+  const selectedLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "");
+  return {
+    key: selectedFirmwareId,
+    displayName: selectedLabel,
+  };
+}
+
+function selectedFirmwareSupportsWifi() {
+  const firmware = getSelectedFirmwareMetadata();
+  const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
   return source.includes("wifi");
 }
 
 function selectedFirmwareIsRepeater() {
-  const firmwareLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "").toLowerCase();
-  const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
-  const source = `${selectedFirmwareId} ${firmwareLabel}`;
+  const firmware = getSelectedFirmwareMetadata();
+  const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
   return source.includes("repeater");
 }
 
 function updateContextualSections() {
+  const showRepeaterQuickSet = selectedFirmwareIsRepeater();
   const showWifiConfig = selectedFirmwareSupportsWifi();
-  const showRepeaterConfigLink = selectedFirmwareIsRepeater() && !showWifiConfig;
+  const showRepeaterConfigLink = showRepeaterQuickSet && !showWifiConfig;
 
   if (showWifiConfig) {
     wifiConfigSection.classList.remove("hidden");
   } else {
     wifiConfigSection.classList.add("hidden");
+  }
+
+  if (showRepeaterQuickSet) {
+    repeaterQuickSetSection.classList.remove("hidden");
+  } else {
+    repeaterQuickSetSection.classList.add("hidden");
   }
 
   if (showRepeaterConfigLink) {
@@ -767,6 +798,14 @@ quickSetWifiSsidBtn.addEventListener("click", () => {
 });
 
 quickSetWifiPwdBtn.addEventListener("click", () => {
+  setSerialInputCommand("set wifi.pwd");
+});
+
+quickSetRepeaterWifiSsidBtn.addEventListener("click", () => {
+  setSerialInputCommand("set wifi.ssid");
+});
+
+quickSetRepeaterWifiPwdBtn.addEventListener("click", () => {
   setSerialInputCommand("set wifi.pwd");
 });
 
