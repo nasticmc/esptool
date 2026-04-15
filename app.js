@@ -22,13 +22,16 @@ const disconnectSerialBtn = document.getElementById("disconnectSerial");
 const clearConsoleBtn = document.getElementById("clearConsole");
 const serialInput = document.getElementById("serialInput");
 const sendSerialBtn = document.getElementById("sendSerial");
-const repeaterConfigLink = document.getElementById("repeaterConfigLink");
 const wifiConfigSection = document.getElementById("wifiConfigSection");
-const repeaterQuickSetSection = document.getElementById("repeaterQuickSetSection");
+const repeaterConfigSection = document.getElementById("repeaterConfigSection");
 const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
 const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
 const quickSetRepeaterWifiSsidBtn = document.getElementById("quickSetRepeaterWifiSsid");
 const quickSetRepeaterWifiPwdBtn = document.getElementById("quickSetRepeaterWifiPwd");
+const quickSetWebOnBtn = document.getElementById("quickSetWebOn");
+const quickSetWebOffBtn = document.getElementById("quickSetWebOff");
+const quickGetWebStatusBtn = document.getElementById("quickGetWebStatus");
+const quickGetWifiStatusBtn = document.getElementById("quickGetWifiStatus");
 const consoleArea = document.getElementById("console");
 
 let esploader = null;
@@ -184,9 +187,8 @@ function selectedFirmwareIsRepeater() {
 }
 
 function updateContextualSections() {
-  const showRepeaterQuickSet = selectedFirmwareIsRepeater();
+  const showRepeaterConfig = selectedFirmwareIsRepeater();
   const showWifiConfig = selectedFirmwareSupportsWifi();
-  const showRepeaterConfigLink = showRepeaterQuickSet && !showWifiConfig;
 
   if (showWifiConfig) {
     wifiConfigSection.classList.remove("hidden");
@@ -194,16 +196,10 @@ function updateContextualSections() {
     wifiConfigSection.classList.add("hidden");
   }
 
-  if (showRepeaterQuickSet) {
-    repeaterQuickSetSection.classList.remove("hidden");
+  if (showRepeaterConfig) {
+    repeaterConfigSection.classList.remove("hidden");
   } else {
-    repeaterQuickSetSection.classList.add("hidden");
-  }
-
-  if (showRepeaterConfigLink) {
-    repeaterConfigLink.classList.remove("hidden");
-  } else {
-    repeaterConfigLink.classList.add("hidden");
+    repeaterConfigSection.classList.add("hidden");
   }
 }
 
@@ -807,6 +803,22 @@ quickSetRepeaterWifiSsidBtn.addEventListener("click", () => {
 
 quickSetRepeaterWifiPwdBtn.addEventListener("click", () => {
   setSerialInputCommand("set wifi.pwd");
+});
+
+quickSetWebOnBtn.addEventListener("click", () => {
+  setSerialInputCommand("set web on");
+});
+
+quickSetWebOffBtn.addEventListener("click", () => {
+  setSerialInputCommand("set web off");
+});
+
+quickGetWebStatusBtn.addEventListener("click", () => {
+  setSerialInputCommand("get web status");
+});
+
+quickGetWifiStatusBtn.addEventListener("click", () => {
+  setSerialInputCommand("get wifi.status");
 });
 
 async function safelyDisconnectSerial() {
