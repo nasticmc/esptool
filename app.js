@@ -22,12 +22,9 @@ const disconnectSerialBtn = document.getElementById("disconnectSerial");
 const clearConsoleBtn = document.getElementById("clearConsole");
 const serialInput = document.getElementById("serialInput");
 const sendSerialBtn = document.getElementById("sendSerial");
+const wifiConfigSection = document.getElementById("wifiConfigSection");
 const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
 const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
-const quickGetWifiStatusBtn = document.getElementById("quickGetWifiStatus");
-const quickGetWebStatusBtn = document.getElementById("quickGetWebStatus");
-const quickSetWebOnBtn = document.getElementById("quickSetWebOn");
-const quickSetWebOffBtn = document.getElementById("quickSetWebOff");
 const consoleArea = document.getElementById("console");
 
 let esploader = null;
@@ -145,6 +142,21 @@ function getSelectedImageInfo() {
 
 function normalizeFirmwareId(value = "") {
   return String(value).trim().toLowerCase();
+}
+
+function selectedFirmwareSupportsWifi() {
+  const firmwareLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "").toLowerCase();
+  const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
+  const source = `${selectedFirmwareKey ?? ""} ${firmwareLabel}`;
+  return source.includes("wifi");
+}
+
+function updateContextualSections() {
+  if (selectedFirmwareSupportsWifi()) {
+    wifiConfigSection.classList.remove("hidden");
+    return;
+  }
+  wifiConfigSection.classList.add("hidden");
 }
 
 function getFirmwareKeyForBoard(boardKey, firmwareId) {
@@ -403,6 +415,7 @@ function refreshImageTypes() {
   }));
 
   setOptions(imageTypeSelect, imageOptions);
+  updateContextualSections();
 }
 
 function refreshVersions() {
@@ -475,6 +488,7 @@ function populateFirmwareSelect() {
   const firmwareOptions = [...firmwareOptionsById.values()].sort((a, b) => a.label.localeCompare(b.label));
   setOptions(firmwareSelect, firmwareOptions);
   refreshBoards();
+  updateContextualSections();
 }
 
 async function loadFirmwareManifest() {
@@ -737,22 +751,6 @@ quickSetWifiSsidBtn.addEventListener("click", () => {
 
 quickSetWifiPwdBtn.addEventListener("click", () => {
   setSerialInputCommand("set wifi.pwd");
-});
-
-quickGetWifiStatusBtn.addEventListener("click", () => {
-  setSerialInputCommand("get wifi.status");
-});
-
-quickGetWebStatusBtn.addEventListener("click", () => {
-  setSerialInputCommand("get web.status");
-});
-
-quickSetWebOnBtn.addEventListener("click", () => {
-  setSerialInputCommand("set web on");
-});
-
-quickSetWebOffBtn.addEventListener("click", () => {
-  setSerialInputCommand("set web off");
 });
 
 async function safelyDisconnectSerial() {

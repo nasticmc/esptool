@@ -54,14 +54,16 @@ The flash address is determined automatically from the selected image type.
    - The progress bar and log area show flashing status; the flasher auto-disconnects when done.
    - Click **Download Selected Firmware** to save the `.bin` file locally.
    - Click **Full Erase Device** to perform a complete flash erase.
-4. In **Serial Console**:
+4. In **Serial Terminal**:
    - Click **Open Repeater Config** to launch the MeshCore configuration portal.
    - Click **Connect Serial** and choose the board port.
    - Watch boot/app logs in the console area.
    - Enter commands in the input field and click **Send** (or press Enter).
-   - Use **Insert: set wifi.ssid** and **Insert: set wifi.pwd** to pre-fill common commands.
    - Click **Clear Console** to reset the console output.
    - Click **Disconnect Serial** when done.
+5. If you select a WiFi firmware, use the **Wifi Configuration** card:
+   - Hold the device **USER** button for **8 seconds** to enter CLI mode.
+   - Click **set wifi.ssid** and **set wifi.pwd** to pre-fill commands in the serial input field.
 
 ## Notes
 

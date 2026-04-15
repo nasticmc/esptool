@@ -235,7 +235,7 @@
         <a class="button-link serial-link" href="https://config.meshcore.io/" target="_blank" rel="noopener noreferrer">
           Open Repeater Config
         </a>
-        <h2>Serial Console</h2>
+        <h2>Serial Terminal</h2>
         <div class="actions">
           <button id="connectSerial">Connect Serial</button>
           <button id="disconnectSerial" disabled>Disconnect Serial</button>
@@ -251,18 +251,18 @@
             <button id="sendSerial" disabled>Send</button>
           </div>
         </div>
-        <div class="quick-commands">
-          <h3>Quick Commands</h3>
-          <div class="actions">
-            <button id="quickSetWifiSsid">set wifi.ssid</button>
-            <button id="quickSetWifiPwd">set wifi.pwd</button>
-            <button id="quickGetWifiStatus">get wifi.status</button>
-            <button id="quickGetWebStatus">get web.status</button>
-            <button id="quickSetWebOn">set web on</button>
-            <button id="quickSetWebOff">set web off</button>
-          </div>
-        </div>
         <textarea id="console" readonly></textarea>
+      </section>
+
+      <section id="wifiConfigSection" class="panel hidden">
+        <h2>Wifi Configuration</h2>
+        <p class="hint">
+          Hold the <strong>USER</strong> button on your device for <strong>8 seconds</strong> to enter CLI mode, then use the commands below in the serial terminal.
+        </p>
+        <div class="actions">
+          <button id="quickSetWifiSsid">set wifi.ssid</button>
+          <button id="quickSetWifiPwd">set wifi.pwd</button>
+        </div>
       </section>
     </main>
 
