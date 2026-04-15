@@ -10,6 +10,12 @@ const boardSelect = document.getElementById("boardSelect");
 const firmwareSelect = document.getElementById("firmwareSelect");
 const versionSelect = document.getElementById("versionSelect");
 const imageTypeSelect = document.getElementById("imageTypeSelect");
+const releaseNotesSection = document.getElementById("releaseNotesSection");
+const releaseNotesMeta = document.getElementById("releaseNotesMeta");
+const releaseNotesSummary = document.getElementById("releaseNotesSummary");
+const releaseNotesChanges = document.getElementById("releaseNotesChanges");
+const releaseNotesBreakingHeading = document.getElementById("releaseNotesBreakingHeading");
+const releaseNotesBreakingChanges = document.getElementById("releaseNotesBreakingChanges");
 
 const connectSerialBtn = document.getElementById("connectSerial");
 const disconnectSerialBtn = document.getElementById("disconnectSerial");
@@ -34,9 +40,11 @@ let serialWriter = null;
 let serialKeepReading = false;
 
 let firmwareCatalog = null;
+let releaseNotesCatalog = null;
 
 const FLASH_BAUD_RATE = 921600;
 const SERIAL_BAUD_RATE = 115200;
+const RELEASE_NOTES_URL = "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml";
 
 const logger = {
   clean() {
@@ -211,6 +219,175 @@ function getImageTypeLabel(typeKey) {
   return toTitleCase(typeKey.replace(/[_-]+/g, " ").split(/\s+/));
 }
 
+function stripOptionalQuotes(value = "") {
+  const trimmed = String(value).trim();
+  if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function parseSimpleReleaseNotesYaml(yamlText) {
+  const lines = String(yamlText).split(/\r?\n/);
+  const releases = [];
+  let currentRelease = null;
+  let currentChange = null;
+  let inChanges = false;
+  let inBreakingChanges = false;
+
+  for (const line of lines) {
+    const versionMatch = line.match(/^  - version:\s*(.+)\s*$/);
+    if (versionMatch) {
+      if (currentRelease) {
+        releases.push(currentRelease);
+      }
+      currentRelease = {
+        version: stripOptionalQuotes(versionMatch[1]),
+        tag: "",
+        date: "",
+        summary: "",
+        changes: [],
+        breakingChanges: [],
+      };
+      currentChange = null;
+      inChanges = false;
+      inBreakingChanges = false;
+      continue;
+    }
+
+    if (!currentRelease) {
+      continue;
+    }
+
+    const topLevelInRelease = line.match(/^    ([a-z_]+):\s*(.*)\s*$/);
+    if (topLevelInRelease) {
+      const [, key, rawValue] = topLevelInRelease;
+      if (key === "changes") {
+        inChanges = true;
+        inBreakingChanges = false;
+        currentChange = null;
+        continue;
+      }
+      if (key === "breaking_changes") {
+        inChanges = false;
+        inBreakingChanges = true;
+        currentChange = null;
+        if (rawValue === "[]") {
+          inBreakingChanges = false;
+        }
+        continue;
+      }
+      inChanges = false;
+      inBreakingChanges = false;
+      currentChange = null;
+      if (key === "tag" || key === "date" || key === "summary") {
+        currentRelease[key] = stripOptionalQuotes(rawValue);
+      }
+      continue;
+    }
+
+    if (inChanges) {
+      const changeTypeMatch = line.match(/^      - type:\s*(.+)\s*$/);
+      if (changeTypeMatch) {
+        currentChange = {
+          type: stripOptionalQuotes(changeTypeMatch[1]),
+          area: "",
+          text: "",
+        };
+        continue;
+      }
+
+      const changeAreaMatch = line.match(/^        area:\s*(.+)\s*$/);
+      if (changeAreaMatch && currentChange) {
+        currentChange.area = stripOptionalQuotes(changeAreaMatch[1]);
+        continue;
+      }
+
+      const changeTextMatch = line.match(/^        text:\s*(.+)\s*$/);
+      if (changeTextMatch && currentChange) {
+        currentChange.text = stripOptionalQuotes(changeTextMatch[1]);
+        currentRelease.changes.push(currentChange);
+        currentChange = null;
+      }
+      continue;
+    }
+
+    if (inBreakingChanges) {
+      const breakingChangeMatch = line.match(/^      -\s*(.+)\s*$/);
+      if (breakingChangeMatch) {
+        currentRelease.breakingChanges.push(stripOptionalQuotes(breakingChangeMatch[1]));
+      }
+    }
+  }
+
+  if (currentRelease) {
+    releases.push(currentRelease);
+  }
+
+  return { releases };
+}
+
+function normalizeToVersionNumber(value = "") {
+  const match = String(value).match(/(\d+\.\d+\.\d+(?:\.\d+)?)/);
+  return match?.[1] ?? "";
+}
+
+function renderReleaseNotesForSelection() {
+  const selectedImage = getSelectedImageInfo();
+  const selectedVersion = selectedImage?.versionKey ?? versionSelect.value;
+  const selectedVersionNumber = normalizeToVersionNumber(selectedVersion);
+  const matchedRelease = releaseNotesCatalog?.releases?.find((release) => normalizeToVersionNumber(release.version) === selectedVersionNumber);
+
+  releaseNotesChanges.innerHTML = "";
+  releaseNotesBreakingChanges.innerHTML = "";
+
+  if (!selectedVersion || !releaseNotesCatalog?.releases?.length) {
+    releaseNotesSection.classList.add("hidden");
+    return;
+  }
+
+  if (!matchedRelease) {
+    releaseNotesSection.classList.remove("hidden");
+    releaseNotesMeta.textContent = `Version ${selectedVersion}`;
+    releaseNotesSummary.textContent = "No matching release notes found for the selected version.";
+    const fallback = document.createElement("li");
+    fallback.textContent = "Release notes are only shown when a matching version exists in release-notes.yml.";
+    releaseNotesChanges.appendChild(fallback);
+    releaseNotesBreakingHeading.classList.add("hidden");
+    releaseNotesBreakingChanges.classList.add("hidden");
+    return;
+  }
+
+  releaseNotesSection.classList.remove("hidden");
+  releaseNotesMeta.textContent = `${matchedRelease.tag || `v${matchedRelease.version}`} • ${matchedRelease.date || "Date unavailable"}`;
+  releaseNotesSummary.textContent = matchedRelease.summary || "No summary provided.";
+
+  for (const change of matchedRelease.changes) {
+    const item = document.createElement("li");
+    const detail = change.area ? `${change.area}: ${change.text}` : change.text;
+    item.textContent = detail || "No change details.";
+    releaseNotesChanges.appendChild(item);
+  }
+  if (!matchedRelease.changes.length) {
+    const item = document.createElement("li");
+    item.textContent = "No listed changes.";
+    releaseNotesChanges.appendChild(item);
+  }
+
+  if (matchedRelease.breakingChanges.length) {
+    releaseNotesBreakingHeading.classList.remove("hidden");
+    releaseNotesBreakingChanges.classList.remove("hidden");
+    for (const breakingChange of matchedRelease.breakingChanges) {
+      const item = document.createElement("li");
+      item.textContent = breakingChange;
+      releaseNotesBreakingChanges.appendChild(item);
+    }
+  } else {
+    releaseNotesBreakingHeading.classList.add("hidden");
+    releaseNotesBreakingChanges.classList.add("hidden");
+  }
+}
+
 function refreshImageTypes() {
   if (!firmwareCatalog?.boards) {
     setOptions(imageTypeSelect, []);
@@ -226,7 +403,6 @@ function refreshImageTypes() {
   }));
 
   setOptions(imageTypeSelect, imageOptions);
-
 }
 
 function refreshVersions() {
@@ -246,6 +422,7 @@ function refreshVersions() {
 
   setOptions(versionSelect, versionOptions);
   refreshImageTypes();
+  renderReleaseNotesForSelection();
 }
 
 function refreshBoards() {
@@ -316,9 +493,30 @@ async function loadFirmwareManifest() {
   populateFirmwareSelect();
 }
 
+async function loadReleaseNotes() {
+  try {
+    const response = await fetch(RELEASE_NOTES_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const yamlText = await response.text();
+    releaseNotesCatalog = parseSimpleReleaseNotesYaml(yamlText);
+    appendLog(`Loaded release notes (${releaseNotesCatalog.releases.length} releases).`);
+  } catch (error) {
+    releaseNotesCatalog = null;
+    appendLog(`Release notes unavailable (${error.message ?? error}).`);
+  }
+
+  renderReleaseNotesForSelection();
+}
+
 boardSelect.addEventListener("change", refreshVersions);
 firmwareSelect.addEventListener("change", refreshBoards);
-versionSelect.addEventListener("change", refreshImageTypes);
+versionSelect.addEventListener("change", () => {
+  refreshImageTypes();
+  renderReleaseNotesForSelection();
+});
 async function connectFlasherIfNeeded() {
   if (esploader) {
     return;
@@ -592,3 +790,4 @@ async function safelyDisconnectSerial() {
 }
 
 loadFirmwareManifest();
+loadReleaseNotes();

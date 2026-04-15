@@ -158,6 +158,34 @@
         font-weight: 600;
         letter-spacing: 0.01em;
       }
+      .release-notes {
+        margin-top: 0.9rem;
+        padding: 0.85rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: #2b2b2b;
+      }
+      .release-notes h3,
+      .release-notes h4 {
+        margin: 0 0 0.35rem;
+      }
+      .release-notes h3 {
+        font-size: 1rem;
+      }
+      .release-notes h4 {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+      .release-notes p {
+        margin: 0.35rem 0 0.65rem;
+      }
+      .release-notes ul {
+        margin: 0.3rem 0 0.65rem 1.2rem;
+        padding: 0;
+      }
+      .release-notes li {
+        margin: 0.25rem 0;
+      }
     </style>
   </head>
   <body>
@@ -189,6 +217,15 @@
           <button id="flashBtn">Flash Firmware</button>
           <button id="downloadFirmwareBtn">Download Selected Firmware</button>
           <button id="eraseBtn">Full Erase Device</button>
+        </div>
+        <div id="releaseNotesSection" class="release-notes hidden">
+          <h3>Release Notes</h3>
+          <p id="releaseNotesMeta" class="hint"></p>
+          <p id="releaseNotesSummary"></p>
+          <h4>Changes</h4>
+          <ul id="releaseNotesChanges"></ul>
+          <h4 id="releaseNotesBreakingHeading" class="hidden">Breaking Changes</h4>
+          <ul id="releaseNotesBreakingChanges" class="hidden"></ul>
         </div>
         <progress id="progress" value="0" max="100"></progress>
         <textarea id="log" readonly></textarea>
