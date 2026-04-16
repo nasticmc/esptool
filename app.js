@@ -42,6 +42,8 @@ let serialPort = null;
 let serialReader = null;
 let serialWriter = null;
 let serialKeepReading = false;
+const serialTextEncoder = new TextEncoder();
+const serialTextDecoder = new TextDecoder();
 
 let firmwareCatalog = null;
 let releaseNotesCatalog = null;
@@ -757,12 +759,8 @@ connectSerialBtn.addEventListener("click", async () => {
     setSerialConnected(true);
     appendConsole(`\n[Serial connected at ${SERIAL_BAUD_RATE} baud]\n`);
 
-    const decoder = new TextDecoderStream();
-    serialPort.readable.pipeTo(decoder.writable).catch(() => {});
-    serialReader = decoder.readable.getReader();
-    const encoder = new TextEncoderStream();
-    encoder.readable.pipeTo(serialPort.writable).catch(() => {});
-    serialWriter = encoder.writable.getWriter();
+    serialReader = serialPort.readable.getReader();
+    serialWriter = serialPort.writable.getWriter();
 
     while (serialKeepReading) {
       const { value, done } = await serialReader.read();
@@ -770,7 +768,7 @@ connectSerialBtn.addEventListener("click", async () => {
         break;
       }
       if (value) {
-        appendConsole(value);
+        appendConsole(serialTextDecoder.decode(value, { stream: true }));
       }
     }
   } catch (error) {
@@ -795,7 +793,7 @@ async function sendSerialText(text) {
   }
 
   const payload = text.endsWith("\n") ? text : `${text}\n`;
-  await serialWriter.write(payload);
+  await serialWriter.write(serialTextEncoder.encode(payload));
   appendConsole(`\n> ${text}\n`);
 }
 
@@ -871,7 +869,6 @@ async function safelyDisconnectSerial() {
 
   if (serialWriter) {
     try {
-      await serialWriter.close();
       serialWriter.releaseLock();
     } catch {
       // Ignore cleanup errors.
