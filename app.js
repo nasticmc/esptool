@@ -754,6 +754,11 @@ connectSerialBtn.addEventListener("click", async () => {
     ensureWebSerial();
     serialPort = await navigator.serial.requestPort();
     await serialPort.open({ baudRate: SERIAL_BAUD_RATE });
+    try {
+      await serialPort.setSignals({ dataTerminalReady: true, requestToSend: true });
+    } catch {
+      // Some adapters do not support signal control.
+    }
 
     serialKeepReading = true;
     setSerialConnected(true);
@@ -792,9 +797,11 @@ async function sendSerialText(text) {
     return;
   }
 
-  const payload = text.endsWith("\n") ? text : `${text}\n`;
+  const normalized = text.replace(/\r?\n$/, "");
+  const payload = `${normalized}\r\n`;
+  await serialWriter.ready;
   await serialWriter.write(serialTextEncoder.encode(payload));
-  appendConsole(`\n> ${text}\n`);
+  appendConsole(`\n[TX] ${normalized}\n`);
 }
 
 sendSerialBtn.addEventListener("click", async () => {
