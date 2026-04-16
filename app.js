@@ -288,17 +288,26 @@ function parseSimpleReleaseNotesYaml(yamlText) {
   const releases = [];
   let currentRelease = null;
   let currentChange = null;
+  let inReleases = false;
   let inChanges = false;
   let inBreakingChanges = false;
 
   for (const line of lines) {
-    const versionMatch = line.match(/^  - version:\s*(.+)\s*$/);
-    if (versionMatch) {
+    if (!inReleases) {
+      if (/^releases:\s*$/.test(line)) {
+        inReleases = true;
+      }
+      continue;
+    }
+
+    const releaseTrackMatch = line.match(/^  - track:\s*(.+)\s*$/);
+    if (releaseTrackMatch) {
       if (currentRelease) {
         releases.push(currentRelease);
       }
       currentRelease = {
-        version: stripOptionalQuotes(versionMatch[1]),
+        track: stripOptionalQuotes(releaseTrackMatch[1]),
+        version: "",
         tag: "",
         date: "",
         summary: "",
@@ -336,7 +345,7 @@ function parseSimpleReleaseNotesYaml(yamlText) {
       inChanges = false;
       inBreakingChanges = false;
       currentChange = null;
-      if (key === "tag" || key === "date" || key === "summary") {
+      if (key === "version" || key === "tag" || key === "date" || key === "summary") {
         currentRelease[key] = stripOptionalQuotes(rawValue);
       }
       continue;
@@ -388,11 +397,37 @@ function normalizeToVersionNumber(value = "") {
   return match?.[1] ?? "";
 }
 
+function normalizeReleaseTrack(value = "") {
+  return String(value).trim().toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+function getReleaseTrackForSelection() {
+  const firmware = getSelectedFirmwareMetadata();
+  const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
+  if (source.includes("repeater") && source.includes("mqtt")) {
+    return "repeater-mqtt";
+  }
+  if (source.includes("companion") && source.includes("wifi")) {
+    return "companion-wifi";
+  }
+  return "";
+}
+
 function renderReleaseNotesForSelection() {
   const selectedImage = getSelectedImageInfo();
   const selectedVersion = selectedImage?.versionKey ?? versionSelect.value;
   const selectedVersionNumber = normalizeToVersionNumber(selectedVersion);
-  const matchedRelease = releaseNotesCatalog?.releases?.find((release) => normalizeToVersionNumber(release.version) === selectedVersionNumber);
+  const selectedTrack = getReleaseTrackForSelection();
+  const matchedRelease = releaseNotesCatalog?.releases?.find((release) => {
+    const sameVersion = normalizeToVersionNumber(release.version) === selectedVersionNumber;
+    if (!sameVersion) {
+      return false;
+    }
+    if (!selectedTrack) {
+      return true;
+    }
+    return normalizeReleaseTrack(release.track) === selectedTrack;
+  });
 
   releaseNotesChanges.innerHTML = "";
   releaseNotesBreakingChanges.innerHTML = "";
@@ -415,7 +450,8 @@ function renderReleaseNotesForSelection() {
   }
 
   releaseNotesSection.classList.remove("hidden");
-  releaseNotesMeta.textContent = `${matchedRelease.tag || `v${matchedRelease.version}`} • ${matchedRelease.date || "Date unavailable"}`;
+  const trackSuffix = matchedRelease.track ? ` • ${matchedRelease.track}` : "";
+  releaseNotesMeta.textContent = `${matchedRelease.tag || `v${matchedRelease.version}`} • ${matchedRelease.date || "Date unavailable"}${trackSuffix}`;
   releaseNotesSummary.textContent = matchedRelease.summary || "No summary provided.";
 
   for (const change of matchedRelease.changes) {
