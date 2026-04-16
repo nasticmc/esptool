@@ -48,7 +48,7 @@ const serialTextDecoder = new TextDecoder();
 let firmwareCatalog = null;
 let releaseNotesCatalog = null;
 
-const FLASH_BAUD_RATE = 921600;
+const FLASH_BAUD_RATE = 460800;
 const SERIAL_BAUD_RATE = 115200;
 const RELEASE_NOTES_URL = "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml";
 
