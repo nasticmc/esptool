@@ -1,0 +1,11 @@
+[Unit]
+Description=Run EastMesh firmware sync every hour
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+Persistent=true
+Unit=esptool-sync.service
+
+[Install]
+WantedBy=timers.target

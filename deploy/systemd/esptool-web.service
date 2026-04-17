@@ -1,0 +1,17 @@
+[Unit]
+Description=EastMesh ESP32 Flasher Web UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=esptool
+Group=esptool
+WorkingDirectory=/opt/esptool
+EnvironmentFile=-/etc/default/esptool
+ExecStart=/usr/bin/python3 -m http.server ${ESPTOOL_PORT:-8000} --bind ${ESPTOOL_BIND:-0.0.0.0}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

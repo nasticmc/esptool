@@ -1,0 +1,11 @@
+[Unit]
+Description=EastMesh firmware sync job
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=esptool
+Group=esptool
+WorkingDirectory=/opt/esptool
+ExecStart=/usr/bin/python3 /opt/esptool/sync_meshcore_releases.py

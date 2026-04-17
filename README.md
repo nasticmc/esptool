@@ -41,6 +41,67 @@ When `firmwares/manifest.json` exists, the flasher loads these dependent selecto
 
 The flash address is determined automatically from the selected image type.
 
+
+## Run as a Linux service (systemd)
+
+Yes — this project can run cleanly as a service. Sample units are provided in
+`deploy/systemd/`:
+
+- `esptool-web.service` — serves the web UI with `python3 -m http.server`
+- `esptool-sync.service` — one-shot job to run `sync_meshcore_releases.py`
+- `esptool-sync.timer` — triggers sync service every hour
+
+### 1) Create a service account and install files
+
+```bash
+sudo useradd --system --home /opt/esptool --shell /usr/sbin/nologin esptool
+sudo mkdir -p /opt/esptool
+sudo rsync -a --delete ./ /opt/esptool/
+sudo chown -R esptool:esptool /opt/esptool
+```
+
+### 2) Install and start the web service
+
+```bash
+sudo cp deploy/systemd/esptool-web.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esptool-web.service
+```
+
+Optional runtime overrides (port/bind) can be placed in `/etc/default/esptool`:
+
+```bash
+ESPTOOL_PORT=8000
+ESPTOOL_BIND=0.0.0.0
+```
+
+### 3) Enable hourly firmware sync (secondary service + timer)
+
+```bash
+sudo cp deploy/systemd/esptool-sync.service /etc/systemd/system/
+sudo cp deploy/systemd/esptool-sync.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now esptool-sync.timer
+```
+
+Check status:
+
+```bash
+systemctl status esptool-web.service
+systemctl list-timers esptool-sync.timer
+```
+
+### Alternate approach: run sync as part of web service startup
+
+If you prefer a single service, add this to `esptool-web.service`:
+
+```ini
+ExecStartPre=/usr/bin/python3 /opt/esptool/sync_meshcore_releases.py
+```
+
+That runs sync before each web-service start/restart, but does **not** provide
+hourly updates while the service is running. For hourly refresh, keep the timer.
+
 ## Usage
 
 1. Serve this folder from a local HTTP server (required for module imports):
