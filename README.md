@@ -6,7 +6,6 @@ A browser-based ESP32 utility that provides:
 - Firmware catalog from local [MeshCore-EastMesh](https://github.com/xJARiD/MeshCore-EastMesh/releases) releases
 - Firmware download for offline use
 - Full-chip erase
-- Two-way serial console for post-flash monitoring and command entry
 
 ## Syncing MeshCore-EastMesh releases locally
 
@@ -115,16 +114,7 @@ hourly updates while the service is running. For hourly refresh, keep the timer.
    - The progress bar and log area show flashing status; the flasher auto-disconnects when done.
    - Click **Download Selected Firmware** to save the `.bin` file locally.
    - Click **Full Erase Device** to perform a complete flash erase.
-4. In **Serial Terminal**:
-   - Click **Open Repeater Config** to launch the MeshCore configuration portal.
-   - Click **Connect Serial** and choose the board port.
-   - Watch boot/app logs in the console area.
-   - Enter commands in the input field and click **Send** (or press Enter).
-   - Click **Clear Console** to reset the console output.
-   - Click **Disconnect Serial** when done.
-5. If you select a WiFi firmware, use the **Wifi Configuration** card:
-   - Hold the device **USER** button for **8 seconds** to enter CLI mode.
-   - Click **set wifi.ssid** and **set wifi.pwd** to pre-fill commands in the serial input field.
+4. Review release notes for the selected firmware version in the **Release Notes** panel.
 
 ## Notes
 
