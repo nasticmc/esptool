@@ -141,7 +141,7 @@ python3 -m http.server 8000
 
 | Constant           | Value    | Location |
 |--------------------|----------|----------|
-| `FLASH_BAUD_RATE`  | 921600   | app.js   |
+| `FLASH_BAUD_RATE`  | 460800   | app.js   |
 | `SERIAL_BAUD_RATE` | 115200   | app.js   |
 | Flash address (merged) | `0x0000` | manifest / app.js |
 | Flash address (app)    | `0x10000` | manifest / app.js |

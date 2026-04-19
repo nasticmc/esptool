@@ -707,6 +707,7 @@ flashBtn.addEventListener("click", async () => {
     appendLog("Flasher disconnected.");
   } catch (error) {
     appendLog(`Flash failed: ${error.message ?? error}`);
+    await safelyDisconnectFlasher();
   }
 });
 
@@ -733,6 +734,7 @@ eraseBtn.addEventListener("click", async () => {
     appendLog("Flasher disconnected.");
   } catch (error) {
     appendLog(`Erase failed: ${error.message ?? error}`);
+    await safelyDisconnectFlasher();
   }
 });
 
@@ -762,13 +764,20 @@ connectSerialBtn.addEventListener("click", async () => {
     serialReader = serialPort.readable.getReader();
     serialWriter = serialPort.writable.getWriter();
 
-    while (serialKeepReading) {
-      const { value, done } = await serialReader.read();
-      if (done) {
-        break;
+    try {
+      while (serialKeepReading) {
+        const { value, done } = await serialReader.read();
+        if (done) {
+          break;
+        }
+        if (value) {
+          appendConsole(serialTextDecoder.decode(value, { stream: true }));
+        }
       }
-      if (value) {
-        appendConsole(serialTextDecoder.decode(value, { stream: true }));
+    } finally {
+      if (serialKeepReading) {
+        appendConsole("\n[Serial stream closed]\n");
+        await safelyDisconnectSerial();
       }
     }
   } catch (error) {
