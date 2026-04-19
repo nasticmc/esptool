@@ -37,6 +37,7 @@ const consoleClearBtn = document.getElementById("consoleClearBtn");
 const consoleLineEnding = document.getElementById("consoleLineEnding");
 const consoleLocalEcho = document.getElementById("consoleLocalEcho");
 const consoleStatus = document.getElementById("consoleStatus");
+const presetCommandButtons = document.querySelectorAll(".preset-command-btn");
 
 let serialPort = null;
 let serialReader = null;
@@ -830,6 +831,14 @@ async function sendConsoleInput() {
   }
 }
 
+function prefillConsoleInput(command) {
+  consoleInput.value = command;
+  if (!consoleInput.disabled) {
+    consoleInput.focus();
+    consoleInput.setSelectionRange(consoleInput.value.length, consoleInput.value.length);
+  }
+}
+
 consoleConnectBtn.addEventListener("click", () => {
   connectSerialConsole();
 });
@@ -852,6 +861,13 @@ consoleInput.addEventListener("keydown", (event) => {
     sendConsoleInput();
   }
 });
+
+for (const button of presetCommandButtons) {
+  button.addEventListener("click", () => {
+    const command = button.dataset.command ?? button.textContent ?? "";
+    prefillConsoleInput(command);
+  });
+}
 
 window.addEventListener("beforeunload", () => {
   if (serialPort) {

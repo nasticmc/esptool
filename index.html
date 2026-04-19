@@ -125,6 +125,14 @@
         padding-left: 1rem;
         padding-right: 1rem;
       }
+      .preset-commands-grid {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+      .preset-commands-grid button {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
       .console-status {
         font-size: 0.85rem;
         color: var(--text-secondary);
@@ -265,6 +273,19 @@
             disabled
           />
           <button id="consoleSendBtn" disabled>Send</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Serial Command Presets</h2>
+        <p class="hint">Click a command to prefill it in the serial input box.</p>
+        <div class="preset-commands-grid">
+          <button class="preset-command-btn" data-command="set wifi.ssid ">set wifi.ssid</button>
+          <button class="preset-command-btn" data-command="set wifi.pwd ">set wifi.pwd</button>
+          <button class="preset-command-btn" data-command="get wifi.status">get wifi.status</button>
+          <button class="preset-command-btn" data-command="get mqtt.status">get mqtt.status</button>
+          <button class="preset-command-btn" data-command="set web on">set web on</button>
+          <button class="preset-command-btn" data-command="get web.status">get web.status</button>
         </div>
       </section>
 
