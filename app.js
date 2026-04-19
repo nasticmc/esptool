@@ -740,6 +740,13 @@ eraseBtn.addEventListener("click", async () => {
 
 async function safelyDisconnectFlasher() {
   esploader = null;
+  if (flasherPort) {
+    try {
+      await flasherPort.setSignals({ dataTerminalReady: false, requestToSend: false });
+    } catch {
+      // Ignore if signals can't be cleared (e.g. port already closed).
+    }
+  }
   if (transport) {
     try {
       await transport.disconnect();
@@ -756,6 +763,11 @@ connectSerialBtn.addEventListener("click", async () => {
     ensureWebSerial();
     serialPort = await navigator.serial.requestPort();
     await serialPort.open({ baudRate: SERIAL_BAUD_RATE });
+    try {
+      await serialPort.setSignals({ dataTerminalReady: false, requestToSend: false });
+    } catch {
+      // Some platforms/drivers don't support setSignals; safe to ignore.
+    }
 
     serialKeepReading = true;
     setSerialConnected(true);
