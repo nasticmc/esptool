@@ -1,0 +1,11 @@
+services:
+  esptool:
+    build: .
+    ports:
+      - "${ESPTOOL_PORT:-8000}:${ESPTOOL_PORT:-8000}"
+    volumes:
+      - ./firmware:/app/firmwares
+    environment:
+      - ESPTOOL_PORT=${ESPTOOL_PORT:-8000}
+      - ESPTOOL_BIND=${ESPTOOL_BIND:-0.0.0.0}
+    restart: unless-stopped
