@@ -772,9 +772,19 @@ connectSerialBtn.addEventListener("click", async () => {
     serialKeepReading = true;
     setSerialConnected(true);
     appendConsole(`\n[Serial connected at ${SERIAL_BAUD_RATE} baud]\n`);
+    appendConsole("[Waiting for data from board... press its reset button if nothing appears]\n");
 
     serialReader = serialPort.readable.getReader();
     serialWriter = serialPort.writable.getWriter();
+
+    let receivedAnyData = false;
+    const noDataTimer = setTimeout(() => {
+      if (!receivedAnyData && serialKeepReading) {
+        appendConsole(
+          "[No data yet after 3s. Check that the board is powered, the correct port was chosen, and the baud rate matches the firmware.]\n",
+        );
+      }
+    }, 3000);
 
     try {
       while (serialKeepReading) {
@@ -782,13 +792,19 @@ connectSerialBtn.addEventListener("click", async () => {
         if (done) {
           break;
         }
-        if (value) {
+        if (value && value.byteLength > 0) {
+          if (!receivedAnyData) {
+            receivedAnyData = true;
+            clearTimeout(noDataTimer);
+            appendConsole(`[Board is responding — received ${value.byteLength} byte(s)]\n`);
+          }
           appendConsole(serialTextDecoder.decode(value, { stream: true }));
         }
       }
     } finally {
+      clearTimeout(noDataTimer);
       if (serialKeepReading) {
-        appendConsole("\n[Serial stream closed]\n");
+        appendConsole("\n[Serial stream closed by device]\n");
         await safelyDisconnectSerial();
       }
     }
