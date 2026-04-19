@@ -25,7 +25,25 @@ let firmwareCatalog = null;
 let releaseNotesCatalog = null;
 
 const FLASH_BAUD_RATE = 460800;
+const SERIAL_BAUD_RATE = 115200;
 const RELEASE_NOTES_URL = "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml";
+
+const consoleArea = document.getElementById("console");
+const consoleInput = document.getElementById("consoleInput");
+const consoleSendBtn = document.getElementById("consoleSendBtn");
+const consoleConnectBtn = document.getElementById("consoleConnectBtn");
+const consoleDisconnectBtn = document.getElementById("consoleDisconnectBtn");
+const consoleClearBtn = document.getElementById("consoleClearBtn");
+const consoleLineEnding = document.getElementById("consoleLineEnding");
+const consoleLocalEcho = document.getElementById("consoleLocalEcho");
+const consoleStatus = document.getElementById("consoleStatus");
+
+let serialPort = null;
+let serialReader = null;
+let serialWriter = null;
+let serialReadLoop = null;
+let serialKeepReading = false;
+const serialDecoder = new TextDecoder();
 
 const logger = {
   clean() {
@@ -667,6 +685,179 @@ async function safelyDisconnectFlasher() {
   transport = null;
   flasherPort = null;
 }
+
+function appendConsole(text) {
+  consoleArea.value += text;
+  consoleArea.scrollTop = consoleArea.scrollHeight;
+}
+
+function setConsoleStatus(message, connected) {
+  consoleStatus.textContent = message;
+  consoleStatus.classList.toggle("is-connected", Boolean(connected));
+}
+
+function setConsoleConnected(connected) {
+  consoleConnectBtn.disabled = connected;
+  consoleDisconnectBtn.disabled = !connected;
+  consoleInput.disabled = !connected;
+  consoleSendBtn.disabled = !connected;
+  setConsoleStatus(
+    connected ? `Connected at ${SERIAL_BAUD_RATE} baud.` : "Disconnected.",
+    connected,
+  );
+}
+
+function lineEndingSuffix() {
+  switch (consoleLineEnding.value) {
+    case "lf":
+      return "\n";
+    case "cr":
+      return "\r";
+    case "none":
+      return "";
+    case "crlf":
+    default:
+      return "\r\n";
+  }
+}
+
+async function readSerialLoop() {
+  try {
+    while (serialKeepReading && serialPort?.readable) {
+      serialReader = serialPort.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await serialReader.read();
+          if (done) {
+            break;
+          }
+          if (value) {
+            appendConsole(serialDecoder.decode(value, { stream: true }));
+          }
+        }
+      } catch (error) {
+        appendConsole(`\n[read error: ${error.message ?? error}]\n`);
+      } finally {
+        try {
+          serialReader.releaseLock();
+        } catch {
+          // Ignore lock release errors.
+        }
+        serialReader = null;
+      }
+    }
+  } finally {
+    serialReadLoop = null;
+  }
+}
+
+async function connectSerialConsole() {
+  if (serialPort) {
+    return;
+  }
+  try {
+    ensureWebSerial();
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: SERIAL_BAUD_RATE });
+    try {
+      await serialPort.setSignals({ dataTerminalReady: true, requestToSend: false });
+    } catch {
+      // Some adapters don't support setSignals — that's fine.
+    }
+    serialWriter = serialPort.writable.getWriter();
+    serialKeepReading = true;
+    setConsoleConnected(true);
+    appendConsole(`\n[connected at ${SERIAL_BAUD_RATE} baud]\n`);
+    serialReadLoop = readSerialLoop();
+    consoleInput.focus();
+  } catch (error) {
+    appendConsole(`\n[connect failed: ${error.message ?? error}]\n`);
+    await disconnectSerialConsole();
+  }
+}
+
+async function disconnectSerialConsole() {
+  serialKeepReading = false;
+  if (serialReader) {
+    try {
+      await serialReader.cancel();
+    } catch {
+      // Ignore cancel errors.
+    }
+  }
+  if (serialWriter) {
+    try {
+      serialWriter.releaseLock();
+    } catch {
+      // Ignore release errors.
+    }
+    serialWriter = null;
+  }
+  if (serialReadLoop) {
+    try {
+      await serialReadLoop;
+    } catch {
+      // Ignore loop exit errors.
+    }
+    serialReadLoop = null;
+  }
+  if (serialPort) {
+    try {
+      await serialPort.close();
+    } catch {
+      // Ignore close errors.
+    }
+    serialPort = null;
+  }
+  setConsoleConnected(false);
+  appendConsole("\n[disconnected]\n");
+}
+
+async function sendConsoleInput() {
+  if (!serialWriter) {
+    return;
+  }
+  const text = consoleInput.value;
+  const payload = `${text}${lineEndingSuffix()}`;
+  try {
+    await serialWriter.write(new TextEncoder().encode(payload));
+    if (consoleLocalEcho.value === "on") {
+      appendConsole(`${text}\n`);
+    }
+    consoleInput.value = "";
+  } catch (error) {
+    appendConsole(`\n[write error: ${error.message ?? error}]\n`);
+  }
+}
+
+consoleConnectBtn.addEventListener("click", () => {
+  connectSerialConsole();
+});
+
+consoleDisconnectBtn.addEventListener("click", () => {
+  disconnectSerialConsole();
+});
+
+consoleClearBtn.addEventListener("click", () => {
+  consoleArea.value = "";
+});
+
+consoleSendBtn.addEventListener("click", () => {
+  sendConsoleInput();
+});
+
+consoleInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendConsoleInput();
+  }
+});
+
+window.addEventListener("beforeunload", () => {
+  if (serialPort) {
+    disconnectSerialConsole();
+  }
+});
 
 loadFirmwareManifest();
 loadReleaseNotes();
