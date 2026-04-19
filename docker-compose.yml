@@ -4,7 +4,7 @@ services:
     ports:
       - "${ESPTOOL_PORT:-8000}:${ESPTOOL_PORT:-8000}"
     volumes:
-      - ./firmware:/app/firmwares
+      - ./firmwares:/app/firmwares
     environment:
       - ESPTOOL_PORT=${ESPTOOL_PORT:-8000}
       - ESPTOOL_BIND=${ESPTOOL_BIND:-0.0.0.0}
