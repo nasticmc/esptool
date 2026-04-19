@@ -17,39 +17,14 @@ const releaseNotesChanges = document.getElementById("releaseNotesChanges");
 const releaseNotesBreakingHeading = document.getElementById("releaseNotesBreakingHeading");
 const releaseNotesBreakingChanges = document.getElementById("releaseNotesBreakingChanges");
 
-const connectSerialBtn = document.getElementById("connectSerial");
-const disconnectSerialBtn = document.getElementById("disconnectSerial");
-const clearConsoleBtn = document.getElementById("clearConsole");
-const serialInput = document.getElementById("serialInput");
-const sendSerialBtn = document.getElementById("sendSerial");
-const wifiConfigSection = document.getElementById("wifiConfigSection");
-const repeaterConfigSection = document.getElementById("repeaterConfigSection");
-const quickSetWifiSsidBtn = document.getElementById("quickSetWifiSsid");
-const quickSetWifiPwdBtn = document.getElementById("quickSetWifiPwd");
-const quickSetRepeaterWifiSsidBtn = document.getElementById("quickSetRepeaterWifiSsid");
-const quickSetRepeaterWifiPwdBtn = document.getElementById("quickSetRepeaterWifiPwd");
-const quickSetWebOnBtn = document.getElementById("quickSetWebOn");
-const quickSetWebOffBtn = document.getElementById("quickSetWebOff");
-const quickGetWebStatusBtn = document.getElementById("quickGetWebStatus");
-const quickGetWifiStatusBtn = document.getElementById("quickGetWifiStatus");
-const consoleArea = document.getElementById("console");
-
 let esploader = null;
 let transport = null;
 let flasherPort = null;
-
-let serialPort = null;
-let serialReader = null;
-let serialWriter = null;
-let serialKeepReading = false;
-const serialTextEncoder = new TextEncoder();
-const serialTextDecoder = new TextDecoder();
 
 let firmwareCatalog = null;
 let releaseNotesCatalog = null;
 
 const FLASH_BAUD_RATE = 460800;
-const SERIAL_BAUD_RATE = 115200;
 const RELEASE_NOTES_URL = "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml";
 
 const logger = {
@@ -67,17 +42,6 @@ const logger = {
 function appendLog(message) {
   logArea.value += `${message}\n`;
   logArea.scrollTop = logArea.scrollHeight;
-}
-
-function appendConsole(message) {
-  consoleArea.value += message;
-  consoleArea.scrollTop = consoleArea.scrollHeight;
-}
-
-function setSerialConnected(connected) {
-  connectSerialBtn.disabled = connected;
-  disconnectSerialBtn.disabled = !connected;
-  sendSerialBtn.disabled = !connected;
 }
 
 function ensureWebSerial() {
@@ -151,58 +115,6 @@ function getSelectedImageInfo() {
 
 function normalizeFirmwareId(value = "") {
   return String(value).trim().toLowerCase();
-}
-
-function getSelectedFirmwareMetadata() {
-  const selectedBoardKey = boardSelect.value;
-  const selectedFirmwareId = normalizeFirmwareId(firmwareSelect.value);
-  const boardFirmwares = firmwareCatalog?.boards?.[selectedBoardKey]?.firmwares;
-
-  if (boardFirmwares) {
-    const matchingEntry = Object.entries(boardFirmwares).find(([firmwareKey]) => normalizeFirmwareId(firmwareKey) === selectedFirmwareId);
-    if (matchingEntry) {
-      const [firmwareKey, firmware] = matchingEntry;
-      return {
-        key: firmwareKey,
-        displayName: firmware?.display_name ?? "",
-      };
-    }
-  }
-
-  const selectedLabel = String(firmwareSelect.options[firmwareSelect.selectedIndex]?.textContent ?? "");
-  return {
-    key: selectedFirmwareId,
-    displayName: selectedLabel,
-  };
-}
-
-function selectedFirmwareSupportsWifi() {
-  const firmware = getSelectedFirmwareMetadata();
-  const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
-  return source.includes("wifi");
-}
-
-function selectedFirmwareIsRepeater() {
-  const firmware = getSelectedFirmwareMetadata();
-  const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
-  return source.includes("repeater");
-}
-
-function updateContextualSections() {
-  const showRepeaterConfig = selectedFirmwareIsRepeater();
-  const showWifiConfig = selectedFirmwareSupportsWifi();
-
-  if (showWifiConfig) {
-    wifiConfigSection.classList.remove("hidden");
-  } else {
-    wifiConfigSection.classList.add("hidden");
-  }
-
-  if (showRepeaterConfig) {
-    repeaterConfigSection.classList.remove("hidden");
-  } else {
-    repeaterConfigSection.classList.add("hidden");
-  }
 }
 
 function getFirmwareKeyForBoard(boardKey, firmwareId) {
@@ -497,7 +409,6 @@ function refreshImageTypes() {
   }));
 
   setOptions(imageTypeSelect, imageOptions);
-  updateContextualSections();
 }
 
 function refreshVersions() {
@@ -570,7 +481,6 @@ function populateFirmwareSelect() {
   const firmwareOptions = [...firmwareOptionsById.values()].sort((a, b) => a.label.localeCompare(b.label));
   setOptions(firmwareSelect, firmwareOptions);
   refreshBoards();
-  updateContextualSections();
 }
 
 async function loadFirmwareManifest() {
@@ -756,175 +666,6 @@ async function safelyDisconnectFlasher() {
   }
   transport = null;
   flasherPort = null;
-}
-
-connectSerialBtn.addEventListener("click", async () => {
-  try {
-    ensureWebSerial();
-    serialPort = await navigator.serial.requestPort();
-    await serialPort.open({ baudRate: SERIAL_BAUD_RATE });
-    try {
-      await serialPort.setSignals({ dataTerminalReady: false, requestToSend: false });
-    } catch {
-      // Some platforms/drivers don't support setSignals; safe to ignore.
-    }
-
-    serialKeepReading = true;
-    setSerialConnected(true);
-    appendConsole(`\n[Serial connected at ${SERIAL_BAUD_RATE} baud]\n`);
-    appendConsole("[Waiting for data from board... press its reset button if nothing appears]\n");
-
-    serialReader = serialPort.readable.getReader();
-    serialWriter = serialPort.writable.getWriter();
-
-    let receivedAnyData = false;
-    const noDataTimer = setTimeout(() => {
-      if (!receivedAnyData && serialKeepReading) {
-        appendConsole(
-          "[No data yet after 3s. Check that the board is powered, the correct port was chosen, and the baud rate matches the firmware.]\n",
-        );
-      }
-    }, 3000);
-
-    try {
-      while (serialKeepReading) {
-        const { value, done } = await serialReader.read();
-        if (done) {
-          break;
-        }
-        if (value && value.byteLength > 0) {
-          if (!receivedAnyData) {
-            receivedAnyData = true;
-            clearTimeout(noDataTimer);
-            appendConsole(`[Board is responding — received ${value.byteLength} byte(s)]\n`);
-          }
-          appendConsole(serialTextDecoder.decode(value, { stream: true }));
-        }
-      }
-    } finally {
-      clearTimeout(noDataTimer);
-      if (serialKeepReading) {
-        appendConsole("\n[Serial stream closed by device]\n");
-        await safelyDisconnectSerial();
-      }
-    }
-  } catch (error) {
-    appendConsole(`\n[Serial connect failed: ${error.message ?? error}]\n`);
-    await safelyDisconnectSerial();
-  }
-});
-
-disconnectSerialBtn.addEventListener("click", async () => {
-  await safelyDisconnectSerial();
-  appendConsole("\n[Serial disconnected]\n");
-});
-
-clearConsoleBtn.addEventListener("click", () => {
-  consoleArea.value = "";
-});
-
-async function sendSerialText(text) {
-  if (!serialWriter) {
-    appendConsole("\n[Serial not connected]\n");
-    return;
-  }
-
-  const normalized = text.replace(/\r?\n$/, "");
-  const payload = `${normalized}\n`;
-  await serialWriter.ready;
-  await serialWriter.write(serialTextEncoder.encode(payload));
-  appendConsole(`\n[TX] ${normalized}\n`);
-}
-
-sendSerialBtn.addEventListener("click", async () => {
-  const text = serialInput.value.trim();
-  if (!text) {
-    return;
-  }
-  try {
-    await sendSerialText(text);
-    serialInput.value = "";
-  } catch (error) {
-    appendConsole(`\n[Serial send failed: ${error.message ?? error}]\n`);
-  }
-});
-
-serialInput.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") {
-    return;
-  }
-  event.preventDefault();
-  sendSerialBtn.click();
-});
-
-function setSerialInputCommand(command) {
-  serialInput.value = `${command} `;
-  serialInput.focus();
-}
-
-quickSetWifiSsidBtn.addEventListener("click", () => {
-  setSerialInputCommand("set wifi.ssid");
-});
-
-quickSetWifiPwdBtn.addEventListener("click", () => {
-  setSerialInputCommand("set wifi.pwd");
-});
-
-quickSetRepeaterWifiSsidBtn.addEventListener("click", () => {
-  setSerialInputCommand("set wifi.ssid");
-});
-
-quickSetRepeaterWifiPwdBtn.addEventListener("click", () => {
-  setSerialInputCommand("set wifi.pwd");
-});
-
-quickSetWebOnBtn.addEventListener("click", () => {
-  setSerialInputCommand("set web on");
-});
-
-quickSetWebOffBtn.addEventListener("click", () => {
-  setSerialInputCommand("set web off");
-});
-
-quickGetWebStatusBtn.addEventListener("click", () => {
-  setSerialInputCommand("get web.status");
-});
-
-quickGetWifiStatusBtn.addEventListener("click", () => {
-  setSerialInputCommand("get wifi.status");
-});
-
-async function safelyDisconnectSerial() {
-  serialKeepReading = false;
-  if (serialReader) {
-    try {
-      await serialReader.cancel();
-      serialReader.releaseLock();
-    } catch {
-      // Ignore cleanup errors.
-    }
-  }
-  serialReader = null;
-
-  if (serialWriter) {
-    try {
-      serialWriter.releaseLock();
-    } catch {
-      // Ignore cleanup errors.
-    }
-  }
-  serialWriter = null;
-
-  if (serialPort) {
-    try {
-      await serialPort.close();
-    } catch {
-      // Ignore cleanup errors.
-    }
-  }
-  serialPort = null;
-
-  setSerialConnected(false);
 }
 
 loadFirmwareManifest();

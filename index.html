@@ -95,8 +95,7 @@
         gap: 0.5rem;
         margin-top: 0.75rem;
       }
-      #log,
-      #console {
+      #log {
         width: 100%;
         min-height: 180px;
         resize: vertical;
@@ -107,9 +106,6 @@
         padding: 0.65rem;
         box-sizing: border-box;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      }
-      #console {
-        min-height: 260px;
       }
       .hint {
         color: var(--text-secondary);
@@ -122,41 +118,6 @@
       }
       .hidden {
         display: none;
-      }
-      .button-link {
-        display: inline-block;
-        width: 100%;
-        box-sizing: border-box;
-        background: var(--accent-strong);
-        color: #f6fff9;
-        border: 1px solid var(--accent-strong);
-        border-radius: 8px;
-        padding: 0.55rem 0.65rem;
-        text-decoration: none;
-        text-align: center;
-        transition: background-color 120ms ease, border-color 120ms ease;
-      }
-      .button-link:hover {
-        background: var(--accent-strong-hover);
-        border-color: var(--accent-strong-hover);
-      }
-      .button-link:focus-visible {
-        border-color: var(--accent-primary);
-        box-shadow: 0 0 0 3px var(--focus-ring);
-        outline: none;
-      }
-      .serial-link {
-        margin-bottom: 0.8rem;
-      }
-      .quick-commands {
-        margin-top: 0.75rem;
-      }
-      .quick-commands h3 {
-        margin: 0 0 0.5rem;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        font-weight: 600;
-        letter-spacing: 0.01em;
       }
       .release-notes {
         margin-top: 0.9rem;
@@ -235,54 +196,6 @@
         <textarea id="log" readonly></textarea>
       </section>
 
-      <section class="panel">
-        <h2>Serial Terminal</h2>
-        <div class="actions">
-          <button id="connectSerial">Connect Serial</button>
-          <button id="disconnectSerial" disabled>Disconnect Serial</button>
-          <button id="clearConsole">Clear Console</button>
-        </div>
-        <div class="grid" style="margin-top: 0.75rem">
-          <div>
-            <label for="serialInput">Serial command/input</label>
-            <input id="serialInput" type="text" placeholder="Type command and click Send" />
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button id="sendSerial" disabled>Send</button>
-          </div>
-        </div>
-        <textarea id="console" readonly></textarea>
-      </section>
-
-      <section id="wifiConfigSection" class="panel hidden">
-        <h2>Wifi Configuration</h2>
-        <p class="hint">
-          Hold the <strong>USER</strong> button on your device for <strong>8 seconds</strong> to enter CLI mode, then use the commands below in the serial terminal.
-        </p>
-        <div class="actions">
-          <button id="quickSetWifiSsid">set wifi.ssid</button>
-          <button id="quickSetWifiPwd">set wifi.pwd</button>
-        </div>
-      </section>
-
-      <section id="repeaterConfigSection" class="panel hidden">
-        <h2>Repeater Configuration</h2>
-        <p class="hint">
-          Use these shortcuts to stage repeater commands in the serial input field.
-        </p>
-        <a id="repeaterConfigLink" class="button-link serial-link" href="https://config.meshcore.io/" target="_blank" rel="noopener noreferrer">
-          Open Repeater Config
-        </a>
-        <div class="actions">
-          <button id="quickSetRepeaterWifiSsid">set wifi.ssid</button>
-          <button id="quickSetRepeaterWifiPwd">set wifi.pwd</button>
-          <button id="quickSetWebOn">set web on</button>
-          <button id="quickSetWebOff">set web off</button>
-          <button id="quickGetWebStatus">get web.status</button>
-          <button id="quickGetWifiStatus">get wifi.status</button>
-        </div>
-      </section>
     </main>
 
     <script type="module" src="./app.js"></script>
