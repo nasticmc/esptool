@@ -25,7 +25,7 @@ OUTPUT_DIR = Path("firmwares")
 MANIFEST_PATH = OUTPUT_DIR / "manifest.json"
 
 FILENAME_RE = re.compile(
-    r"^(?P<board>.+?)_(?P<firmware>repeater_mqtt|companion_radio_wifi)-"
+    r"^(?P<board>[A-Za-z0-9][A-Za-z0-9_-]*?)_(?P<firmware>repeater_mqtt|companion_radio_wifi)-"
     r"v(?P<meshcore_version>\d+\.\d+\.\d+)"
     r"(?:-eastmesh-v(?P<eastmesh_version>\d+\.\d+\.\d+))?"
     r"-(?P<commit>[0-9a-f]+)"
@@ -58,6 +58,13 @@ def fetch_releases() -> list[dict[str, Any]]:
         page += 1
 
     return releases
+
+
+_UNSAFE_PATH_COMPONENT_RE = re.compile(r"[/\\]|^\.+$|\x00")
+
+
+def _is_safe_path_component(value: str) -> bool:
+    return bool(value) and not _UNSAFE_PATH_COMPONENT_RE.search(value)
 
 
 def parse_asset(asset_name: str) -> dict[str, str] | None:
@@ -94,8 +101,19 @@ def download_if_missing(url: str, destination: Path, dry_run: bool) -> str:
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(url, headers={"User-Agent": "esptool-release-sync"})
-    with urllib.request.urlopen(req) as src, destination.open("wb") as dst:
-        dst.write(src.read())
+    tmp_destination = destination.with_suffix(destination.suffix + ".part")
+    try:
+        with urllib.request.urlopen(req) as src, tmp_destination.open("wb") as dst:
+            while True:
+                chunk = src.read(1024 * 1024)
+                if not chunk:
+                    break
+                dst.write(chunk)
+        tmp_destination.replace(destination)
+    except BaseException:
+        if tmp_destination.exists():
+            tmp_destination.unlink()
+        raise
     return "downloaded"
 
 
@@ -150,6 +168,11 @@ def build_manifest(download: bool) -> dict[str, Any]:
             firmware = parsed["firmware"]
             version = release_tag or parsed["meshcore_version"]
             image_type = parsed["image_type"]
+
+            if not _is_safe_path_component(version) or not _is_safe_path_component(name):
+                unmatched_assets.append(name)
+                release_unmatched += 1
+                continue
 
             relative_path = Path(board) / firmware / version / name
             destination = OUTPUT_DIR / relative_path
