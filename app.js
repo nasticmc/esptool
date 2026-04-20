@@ -515,7 +515,12 @@ function refreshBoards() {
       const boardFirmwareKeys = Object.keys(firmwareCatalog.boards?.[boardKey]?.firmwares ?? {});
       return boardFirmwareKeys.some((firmwareKey) => normalizeFirmwareId(firmwareKey) === selectedFirmwareId);
     })
-    .sort();
+    .sort((a, b) =>
+      normalizeBoardLabel(firmwareCatalog.boards[a]?.display_name, a).localeCompare(
+        normalizeBoardLabel(firmwareCatalog.boards[b]?.display_name, b),
+        undefined,
+        { sensitivity: "base" },
+      ));
 
   const boardOptions = boardKeys.map((key) => ({
     value: key,
