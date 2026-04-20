@@ -22,6 +22,7 @@ This will:
 - Download missing firmware files into `firmwares/<board>/<firmware>/<version>/...`
 - Skip files that are already present
 - Build/update `firmwares/manifest.json` for the web UI
+- Refresh `firmwares/release-notes.yml` from MeshCore-EastMesh
 
 To refresh only the manifest (without downloading binaries):
 

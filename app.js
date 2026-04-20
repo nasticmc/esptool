@@ -27,6 +27,7 @@ let releaseNotesCatalog = null;
 const FLASH_BAUD_RATE = 460800;
 const SERIAL_BAUD_RATE = 115200;
 const RELEASE_NOTES_URLS = [
+  "./firmwares/release-notes.yml",
   "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/main/release-notes.yml",
   "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml",
 ];
@@ -147,6 +148,17 @@ function getFirmwareKeyForBoard(boardKey, firmwareId) {
 
   const normalizedId = normalizeFirmwareId(firmwareId);
   return Object.keys(firmwares).find((firmwareKey) => normalizeFirmwareId(firmwareKey) === normalizedId) ?? null;
+}
+
+function getSelectedFirmwareMetadata() {
+  const board = firmwareCatalog?.boards?.[boardSelect.value];
+  const firmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
+  const firmware = board?.firmwares?.[firmwareKey];
+
+  return {
+    key: firmwareKey ?? "",
+    displayName: firmware?.display_name ?? "",
+  };
 }
 
 
