@@ -232,30 +232,6 @@
 
       <section class="panel">
         <h2>Serial Console</h2>
-        <p class="hint">
-          Bidirectional console at 115200 baud for configuring MeshCore devices
-          after flashing. Repeaters accept CLI commands directly; companion
-          devices must be put into CLI mode first by holding the user button
-          for 8 seconds.
-        </p>
-        <div class="grid">
-          <div>
-            <label for="consoleLineEnding">Line ending</label>
-            <select id="consoleLineEnding">
-              <option value="crlf">CRLF (\r\n)</option>
-              <option value="lf">LF (\n)</option>
-              <option value="cr">CR (\r)</option>
-              <option value="none">None</option>
-            </select>
-          </div>
-          <div>
-            <label for="consoleLocalEcho">Local echo</label>
-            <select id="consoleLocalEcho">
-              <option value="on" selected>On</option>
-              <option value="off">Off</option>
-            </select>
-          </div>
-        </div>
         <div class="actions">
           <button id="consoleConnectBtn">Connect</button>
           <button id="consoleDisconnectBtn" disabled>Disconnect</button>

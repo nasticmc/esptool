@@ -38,8 +38,6 @@ const consoleSendBtn = document.getElementById("consoleSendBtn");
 const consoleConnectBtn = document.getElementById("consoleConnectBtn");
 const consoleDisconnectBtn = document.getElementById("consoleDisconnectBtn");
 const consoleClearBtn = document.getElementById("consoleClearBtn");
-const consoleLineEnding = document.getElementById("consoleLineEnding");
-const consoleLocalEcho = document.getElementById("consoleLocalEcho");
 const consoleStatus = document.getElementById("consoleStatus");
 const presetCommandButtons = document.querySelectorAll(".preset-command-btn");
 
@@ -544,7 +542,6 @@ async function loadFirmwareManifest() {
       throw new Error(`HTTP ${response.status}`);
     }
     firmwareCatalog = await response.json();
-    appendLog(`Loaded firmware manifest for ${Object.keys(firmwareCatalog.boards ?? {}).length} boards.`);
   } catch (error) {
     firmwareCatalog = null;
     appendLog(`Manifest unavailable (${error.message ?? error}).`);
@@ -556,7 +553,6 @@ async function loadFirmwareManifest() {
 async function loadReleaseNotes() {
   try {
     let yamlText = "";
-    let loadedFrom = "";
     let lastFetchError = null;
 
     for (const releaseNotesUrl of RELEASE_NOTES_URLS) {
@@ -566,7 +562,6 @@ async function loadReleaseNotes() {
           throw new Error(`HTTP ${response.status}`);
         }
         yamlText = await response.text();
-        loadedFrom = releaseNotesUrl;
         break;
       } catch (error) {
         lastFetchError = error;
@@ -582,7 +577,6 @@ async function loadReleaseNotes() {
       throw new Error("Release notes loaded but no releases were parsed.");
     }
 
-    appendLog(`Loaded release notes (${releaseNotesCatalog.releases.length} releases) from ${loadedFrom}.`);
   } catch (error) {
     releaseNotesCatalog = null;
     appendLog(`Release notes unavailable (${error.message ?? error}).`);
@@ -763,20 +757,6 @@ function setConsoleConnected(connected) {
   );
 }
 
-function lineEndingSuffix() {
-  switch (consoleLineEnding.value) {
-    case "lf":
-      return "\n";
-    case "cr":
-      return "\r";
-    case "none":
-      return "";
-    case "crlf":
-    default:
-      return "\r\n";
-  }
-}
-
 async function readSerialLoop() {
   try {
     while (serialKeepReading && serialPort?.readable) {
@@ -874,12 +854,9 @@ async function sendConsoleInput() {
     return;
   }
   const text = consoleInput.value;
-  const payload = `${text}${lineEndingSuffix()}`;
+  const payload = `${text}\r\n`;
   try {
     await serialWriter.write(new TextEncoder().encode(payload));
-    if (consoleLocalEcho.value === "on") {
-      appendConsole(`${text}\n`);
-    }
     consoleInput.value = "";
   } catch (error) {
     appendConsole(`\n[write error: ${error.message ?? error}]\n`);
