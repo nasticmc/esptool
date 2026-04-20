@@ -23,6 +23,10 @@ REPO = "xJARiD/MeshCore-EastMesh"
 API_URL = f"https://api.github.com/repos/{REPO}/releases"
 OUTPUT_DIR = Path("firmwares")
 MANIFEST_PATH = OUTPUT_DIR / "manifest.json"
+RELEASE_NOTES_URL = (
+    "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/main/release-notes.yml"
+)
+RELEASE_NOTES_PATH = OUTPUT_DIR / "release-notes.yml"
 
 FILENAME_RE = re.compile(
     r"^(?P<board>[A-Za-z0-9][A-Za-z0-9_-]*?)_(?P<firmware>repeater_mqtt|companion_radio_wifi)-"
@@ -257,6 +261,21 @@ def build_manifest(download: bool) -> dict[str, Any]:
     return catalog
 
 
+def update_release_notes() -> bool:
+    req = urllib.request.Request(
+        RELEASE_NOTES_URL,
+        headers={
+            "Accept": "text/yaml, text/plain;q=0.9, */*;q=0.1",
+            "User-Agent": "esptool-release-sync",
+        },
+    )
+    with urllib.request.urlopen(req) as response:
+        release_notes_text = response.read().decode("utf-8")
+
+    RELEASE_NOTES_PATH.write_text(release_notes_text, encoding="utf-8")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -267,12 +286,18 @@ def main() -> int:
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    release_notes_updated = False
+    release_notes_error = None
 
     try:
         manifest = build_manifest(download=not args.manifest_only)
     except urllib.error.URLError as error:
         print(f"Failed to fetch releases: {error}", file=sys.stderr)
         return 1
+    try:
+        release_notes_updated = update_release_notes()
+    except (urllib.error.URLError, UnicodeDecodeError) as error:
+        release_notes_error = error
 
     stats = manifest["stats"]
     manifest_written = True
@@ -289,6 +314,13 @@ def main() -> int:
         )
 
     print(f"Manifest {'updated' if manifest_written else 'kept'}: {MANIFEST_PATH}")
+    if release_notes_updated:
+        print(f"Release notes updated: {RELEASE_NOTES_PATH}")
+    elif release_notes_error is not None:
+        print(
+            "Release notes update skipped; "
+            f"keeping existing file at {RELEASE_NOTES_PATH}: {release_notes_error}"
+        )
     print(f"Downloaded: {stats['downloaded']}")
     print(f"Skipped existing: {stats['skipped_existing']}")
     print(f"Skipped missing local files: {stats['skipped_missing']}")
