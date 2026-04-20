@@ -26,6 +26,7 @@ let releaseNotesCatalog = null;
 
 const FLASH_BAUD_RATE = 460800;
 const SERIAL_BAUD_RATE = 115200;
+const DEFAULT_FIRMWARE_TOKENS = ["repeater", "mqtt"];
 const RELEASE_NOTES_URLS = [
   "./firmwares/release-notes.yml",
   "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/main/release-notes.yml",
@@ -136,6 +137,21 @@ function getSelectedImageInfo() {
 
 function normalizeFirmwareId(value = "") {
   return String(value).trim().toLowerCase();
+}
+
+function normalizeBoardLabel(displayName = "", boardKey = "") {
+  const source = String(displayName || boardKey || "").replace(/[_-]+/g, " ").trim();
+  if (!source) {
+    return boardKey;
+  }
+  return source.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function findDefaultFirmwareOptionValue(options = []) {
+  return options.find((option) => {
+    const normalized = normalizeFirmwareId(option.value);
+    return DEFAULT_FIRMWARE_TOKENS.every((token) => normalized.includes(token));
+  })?.value ?? "";
 }
 
 function getFirmwareKeyForBoard(boardKey, firmwareId) {
@@ -503,7 +519,7 @@ function refreshBoards() {
 
   const boardOptions = boardKeys.map((key) => ({
     value: key,
-    label: firmwareCatalog.boards[key].display_name,
+    label: normalizeBoardLabel(firmwareCatalog.boards[key].display_name, key),
   }));
 
   setOptions(boardSelect, boardOptions);
@@ -531,7 +547,7 @@ function populateFirmwareSelect() {
   }
 
   const firmwareOptions = [...firmwareOptionsById.values()].sort((a, b) => a.label.localeCompare(b.label));
-  setOptions(firmwareSelect, firmwareOptions);
+  setOptions(firmwareSelect, firmwareOptions, findDefaultFirmwareOptionValue(firmwareOptions));
   refreshBoards();
 }
 
