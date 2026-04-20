@@ -26,7 +26,10 @@ let releaseNotesCatalog = null;
 
 const FLASH_BAUD_RATE = 460800;
 const SERIAL_BAUD_RATE = 115200;
-const RELEASE_NOTES_URL = "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml";
+const RELEASE_NOTES_URLS = [
+  "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/main/release-notes.yml",
+  "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/refs/heads/main/release-notes.yml",
+];
 
 const consoleArea = document.getElementById("console");
 const consoleInput = document.getElementById("consoleInput");
@@ -216,14 +219,41 @@ function stripOptionalQuotes(value = "") {
   return trimmed;
 }
 
+function createEmptyReleaseNote() {
+  return {
+    track: "",
+    version: "",
+    tag: "",
+    date: "",
+    summary: "",
+    changes: [],
+    breakingChanges: [],
+  };
+}
+
 function parseSimpleReleaseNotesYaml(yamlText) {
   const lines = String(yamlText).split(/\r?\n/);
   const releases = [];
   let currentRelease = null;
   let currentChange = null;
   let inReleases = false;
-  let inChanges = false;
-  let inBreakingChanges = false;
+  let currentSection = "";
+
+  function flushCurrentChange() {
+    if (currentRelease && currentChange?.text) {
+      currentRelease.changes.push(currentChange);
+    }
+    currentChange = null;
+  }
+
+  function flushCurrentRelease() {
+    if (currentRelease) {
+      flushCurrentChange();
+      releases.push(currentRelease);
+    }
+    currentRelease = null;
+    currentSection = "";
+  }
 
   for (const line of lines) {
     if (!inReleases) {
@@ -233,23 +263,26 @@ function parseSimpleReleaseNotesYaml(yamlText) {
       continue;
     }
 
-    const releaseTrackMatch = line.match(/^  - track:\s*(.+)\s*$/);
-    if (releaseTrackMatch) {
-      if (currentRelease) {
-        releases.push(currentRelease);
+    if (!line.trim()) {
+      continue;
+    }
+
+    const releaseStartMatch = line.match(/^  -\s*(?:([a-z_]+):\s*(.*)\s*)?$/);
+    if (releaseStartMatch) {
+      flushCurrentRelease();
+      currentRelease = createEmptyReleaseNote();
+      const [, inlineKey, inlineValue] = releaseStartMatch;
+      if (inlineKey === "track") {
+        currentRelease.track = stripOptionalQuotes(inlineValue ?? "");
+      } else if (inlineKey === "version") {
+        currentRelease.version = stripOptionalQuotes(inlineValue ?? "");
+      } else if (inlineKey === "tag") {
+        currentRelease.tag = stripOptionalQuotes(inlineValue ?? "");
+      } else if (inlineKey === "date") {
+        currentRelease.date = stripOptionalQuotes(inlineValue ?? "");
+      } else if (inlineKey === "summary") {
+        currentRelease.summary = stripOptionalQuotes(inlineValue ?? "");
       }
-      currentRelease = {
-        track: stripOptionalQuotes(releaseTrackMatch[1]),
-        version: "",
-        tag: "",
-        date: "",
-        summary: "",
-        changes: [],
-        breakingChanges: [],
-      };
-      currentChange = null;
-      inChanges = false;
-      inBreakingChanges = false;
       continue;
     }
 
@@ -261,56 +294,48 @@ function parseSimpleReleaseNotesYaml(yamlText) {
     if (topLevelInRelease) {
       const [, key, rawValue] = topLevelInRelease;
       if (key === "changes") {
-        inChanges = true;
-        inBreakingChanges = false;
-        currentChange = null;
+        flushCurrentChange();
+        currentSection = "changes";
         continue;
       }
       if (key === "breaking_changes") {
-        inChanges = false;
-        inBreakingChanges = true;
-        currentChange = null;
+        flushCurrentChange();
+        currentSection = "breaking_changes";
         if (rawValue === "[]") {
-          inBreakingChanges = false;
+          currentSection = "";
         }
         continue;
       }
-      inChanges = false;
-      inBreakingChanges = false;
-      currentChange = null;
+      flushCurrentChange();
+      currentSection = "";
       if (key === "version" || key === "tag" || key === "date" || key === "summary") {
         currentRelease[key] = stripOptionalQuotes(rawValue);
+      } else if (key === "track") {
+        currentRelease.track = stripOptionalQuotes(rawValue);
       }
       continue;
     }
 
-    if (inChanges) {
-      const changeTypeMatch = line.match(/^      - type:\s*(.+)\s*$/);
-      if (changeTypeMatch) {
-        currentChange = {
-          type: stripOptionalQuotes(changeTypeMatch[1]),
-          area: "",
-          text: "",
-        };
+    if (currentSection === "changes") {
+      const changeStartMatch = line.match(/^      -\s*([a-z_]+):\s*(.+)\s*$/);
+      if (changeStartMatch) {
+        flushCurrentChange();
+        const [, changeKey, changeValue] = changeStartMatch;
+        currentChange = { type: "", area: "", text: "" };
+        currentChange[changeKey] = stripOptionalQuotes(changeValue);
         continue;
       }
 
-      const changeAreaMatch = line.match(/^        area:\s*(.+)\s*$/);
-      if (changeAreaMatch && currentChange) {
-        currentChange.area = stripOptionalQuotes(changeAreaMatch[1]);
+      const changeFieldMatch = line.match(/^        ([a-z_]+):\s*(.+)\s*$/);
+      if (changeFieldMatch && currentChange) {
+        const [, key, value] = changeFieldMatch;
+        currentChange[key] = stripOptionalQuotes(value);
         continue;
-      }
-
-      const changeTextMatch = line.match(/^        text:\s*(.+)\s*$/);
-      if (changeTextMatch && currentChange) {
-        currentChange.text = stripOptionalQuotes(changeTextMatch[1]);
-        currentRelease.changes.push(currentChange);
-        currentChange = null;
       }
       continue;
     }
 
-    if (inBreakingChanges) {
+    if (currentSection === "breaking_changes") {
       const breakingChangeMatch = line.match(/^      -\s*(.+)\s*$/);
       if (breakingChangeMatch) {
         currentRelease.breakingChanges.push(stripOptionalQuotes(breakingChangeMatch[1]));
@@ -318,9 +343,7 @@ function parseSimpleReleaseNotesYaml(yamlText) {
     }
   }
 
-  if (currentRelease) {
-    releases.push(currentRelease);
-  }
+  flushCurrentRelease();
 
   return { releases };
 }
@@ -520,14 +543,34 @@ async function loadFirmwareManifest() {
 
 async function loadReleaseNotes() {
   try {
-    const response = await fetch(RELEASE_NOTES_URL, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    let yamlText = "";
+    let loadedFrom = "";
+    let lastFetchError = null;
+
+    for (const releaseNotesUrl of RELEASE_NOTES_URLS) {
+      try {
+        const response = await fetch(releaseNotesUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        yamlText = await response.text();
+        loadedFrom = releaseNotesUrl;
+        break;
+      } catch (error) {
+        lastFetchError = error;
+      }
     }
 
-    const yamlText = await response.text();
+    if (!yamlText) {
+      throw new Error(lastFetchError?.message ?? "Unable to fetch release notes from configured URLs.");
+    }
+
     releaseNotesCatalog = parseSimpleReleaseNotesYaml(yamlText);
-    appendLog(`Loaded release notes (${releaseNotesCatalog.releases.length} releases).`);
+    if (!releaseNotesCatalog.releases.length) {
+      throw new Error("Release notes loaded but no releases were parsed.");
+    }
+
+    appendLog(`Loaded release notes (${releaseNotesCatalog.releases.length} releases) from ${loadedFrom}.`);
   } catch (error) {
     releaseNotesCatalog = null;
     appendLog(`Release notes unavailable (${error.message ?? error}).`);
