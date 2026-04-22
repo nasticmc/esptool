@@ -227,6 +227,91 @@ function getVersionLabel(versionKey, version = {}, firmwareKey = "") {
   return versionKey;
 }
 
+function parseVersionNumberParts(rawVersion = "") {
+  const normalized = String(rawVersion || "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parts = normalized
+    .replace(/^[vV]/, "")
+    .split(".")
+    .map((segment) => Number.parseInt(segment, 10));
+
+  if (!parts.length || parts.some((part) => !Number.isFinite(part))) {
+    return null;
+  }
+
+  return parts;
+}
+
+function compareVersionPartArraysDesc(aParts, bParts) {
+  const maxLength = Math.max(aParts.length, bParts.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const aValue = aParts[index] ?? 0;
+    const bValue = bParts[index] ?? 0;
+    if (aValue !== bValue) {
+      return bValue - aValue;
+    }
+  }
+  return 0;
+}
+
+function extractEastMeshVersion(rawValue = "") {
+  const match = String(rawValue).match(/eastmesh-[vV]?(\d+(?:\.\d+)+)/i);
+  return match ? match[1] : null;
+}
+
+function getSortableVersionParts(versionKey, version = {}) {
+  const eastMeshCandidates = [
+    version.eastmesh_version,
+    version.release_name,
+    version.release_tag,
+    versionKey,
+  ];
+
+  for (const candidate of eastMeshCandidates) {
+    const eastMeshVersion = extractEastMeshVersion(candidate);
+    const parts = parseVersionNumberParts(eastMeshVersion);
+    if (parts) {
+      return parts;
+    }
+  }
+
+  const fallbackCandidates = [
+    version.meshcore_version,
+    version.release_name,
+    version.release_tag,
+    versionKey,
+  ];
+
+  for (const candidate of fallbackCandidates) {
+    const match = String(candidate).match(/[vV]?(\d+(?:\.\d+)+)/);
+    const parts = parseVersionNumberParts(match ? match[1] : "");
+    if (parts) {
+      return parts;
+    }
+  }
+
+  return null;
+}
+
+function compareFirmwareVersionsDesc(aKey, bKey, versions = {}) {
+  const aParts = getSortableVersionParts(aKey, versions[aKey]);
+  const bParts = getSortableVersionParts(bKey, versions[bKey]);
+
+  if (aParts && bParts) {
+    const versionOrder = compareVersionPartArraysDesc(aParts, bParts);
+    if (versionOrder !== 0) {
+      return versionOrder;
+    }
+  } else if (aParts || bParts) {
+    return aParts ? -1 : 1;
+  }
+
+  return bKey.localeCompare(aKey);
+}
+
 function getImageTypeLabel(typeKey) {
   if (typeKey === "app_bin") {
     return "Update";
@@ -488,10 +573,11 @@ function refreshVersions() {
 
   const selectedFirmwareKey = getFirmwareKeyForBoard(boardSelect.value, firmwareSelect.value);
   const firmware = firmwareCatalog.boards?.[boardSelect.value]?.firmwares?.[selectedFirmwareKey];
-  const versionKeys = Object.keys(firmware?.versions ?? {}).sort((a, b) => b.localeCompare(a));
+  const firmwareVersions = firmware?.versions ?? {};
+  const versionKeys = Object.keys(firmwareVersions).sort((a, b) => compareFirmwareVersionsDesc(a, b, firmwareVersions));
   const versionOptions = versionKeys.map((key) => ({
     value: key,
-    label: getVersionLabel(key, firmware?.versions?.[key], selectedFirmwareKey),
+    label: getVersionLabel(key, firmwareVersions[key], selectedFirmwareKey),
   }));
 
   setOptions(versionSelect, versionOptions);
