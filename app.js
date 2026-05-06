@@ -193,10 +193,10 @@ function normalizeFirmwareLabel(firmwareKey, displayName = "") {
     return "repeater-bridge-espnow";
   }
   if (source.includes("repeater") && source.includes("mqtt") && source.includes("bridge")) {
-    return "repeater-mqtt-bridge-eastmesh";
+    return "repeater-mqtt-bridge";
   }
   if (source.includes("repeater") && source.includes("mqtt")) {
-    return "repeater-mqtt-eastmesh";
+    return "repeater-mqtt";
   }
 
   const cleaned = (displayName || firmwareKey || "")
@@ -485,10 +485,10 @@ function getReleaseTrackForSelection() {
     return "repeater-bridge-espnow";
   }
   if (source.includes("repeater") && source.includes("mqtt") && source.includes("bridge")) {
-    return "repeater-mqtt-bridge-eastmesh";
+    return "repeater-mqtt-bridge";
   }
   if (source.includes("repeater") && source.includes("mqtt")) {
-    return "repeater-mqtt-eastmesh";
+    return "repeater-mqtt";
   }
   return "";
 }
