@@ -150,7 +150,8 @@ function normalizeBoardLabel(displayName = "", boardKey = "") {
 function findDefaultFirmwareOptionValue(options = []) {
   return options.find((option) => {
     const normalized = normalizeFirmwareId(option.value);
-    return DEFAULT_FIRMWARE_TOKENS.every((token) => normalized.includes(token));
+    return DEFAULT_FIRMWARE_TOKENS.every((token) => normalized.includes(token))
+      && !normalized.includes("bridge");
   })?.value ?? "";
 }
 
@@ -185,11 +186,17 @@ function toTitleCase(words) {
 
 function normalizeFirmwareLabel(firmwareKey, displayName = "") {
   const source = `${firmwareKey} ${displayName}`.toLowerCase();
-  if (source.includes("repeater") && source.includes("mqtt")) {
-    return "Repeater Mqtt";
+  if (source.includes("companion") && source.includes("wifi")) {
+    return "companion-wifi";
   }
-  if (source.includes("companion") && source.includes("wifi") && source.includes("radio")) {
-    return "Companion Wifi Radio";
+  if (source.includes("repeater") && source.includes("bridge") && source.includes("espnow")) {
+    return "repeater-bridge-espnow";
+  }
+  if (source.includes("repeater") && source.includes("mqtt") && source.includes("bridge")) {
+    return "repeater-mqtt-bridge-eastmesh";
+  }
+  if (source.includes("repeater") && source.includes("mqtt")) {
+    return "repeater-mqtt-eastmesh";
   }
 
   const cleaned = (displayName || firmwareKey || "")
@@ -471,11 +478,17 @@ function normalizeReleaseTrack(value = "") {
 function getReleaseTrackForSelection() {
   const firmware = getSelectedFirmwareMetadata();
   const source = `${firmware.key} ${firmware.displayName}`.toLowerCase();
-  if (source.includes("repeater") && source.includes("mqtt")) {
-    return "repeater-mqtt";
-  }
   if (source.includes("companion") && source.includes("wifi")) {
     return "companion-wifi";
+  }
+  if (source.includes("repeater") && source.includes("bridge") && source.includes("espnow")) {
+    return "repeater-bridge-espnow";
+  }
+  if (source.includes("repeater") && source.includes("mqtt") && source.includes("bridge")) {
+    return "repeater-mqtt-bridge-eastmesh";
+  }
+  if (source.includes("repeater") && source.includes("mqtt")) {
+    return "repeater-mqtt-eastmesh";
   }
   return "";
 }
