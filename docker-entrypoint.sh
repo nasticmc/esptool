@@ -15,4 +15,4 @@ fi
 done) &
 
 # Serve the web UI
-exec python3 -m http.server "${ESPTOOL_PORT:-8000}" --bind "${ESPTOOL_BIND:-0.0.0.0}"
+exec python3 /app/server.py
