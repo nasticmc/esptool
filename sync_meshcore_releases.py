@@ -29,7 +29,7 @@ RELEASE_NOTES_URL = (
 RELEASE_NOTES_PATH = OUTPUT_DIR / "release-notes.yml"
 
 FILENAME_RE = re.compile(
-    r"^(?P<board>[A-Za-z0-9][A-Za-z0-9_-]*?)_(?P<firmware>repeater_mqtt|companion_radio_wifi)-"
+    r"^(?P<board>[A-Za-z0-9][A-Za-z0-9_-]*?)_(?P<firmware>repeater_mqtt_bridge|repeater_bridge_espnow|repeater_mqtt|companion_radio_wifi)-"
     r"v(?P<meshcore_version>\d+\.\d+\.\d+)"
     r"(?:-eastmesh-v(?P<eastmesh_version>\d+\.\d+\.\d+))?"
     r"-(?P<commit>[0-9a-f]+)"
