@@ -10,6 +10,7 @@ const boardSelect = document.getElementById("boardSelect");
 const firmwareSelect = document.getElementById("firmwareSelect");
 const versionSelect = document.getElementById("versionSelect");
 const imageTypeSelect = document.getElementById("imageTypeSelect");
+const firmwareTooltip = document.getElementById("firmwareTooltip");
 const releaseNotesSection = document.getElementById("releaseNotesSection");
 const releaseNotesMeta = document.getElementById("releaseNotesMeta");
 const releaseNotesSummary = document.getElementById("releaseNotesSummary");
@@ -27,6 +28,13 @@ let releaseNotesCatalog = null;
 const FLASH_BAUD_RATE = 460800;
 const SERIAL_BAUD_RATE = 115200;
 const DEFAULT_FIRMWARE_TOKENS = ["repeater", "mqtt"];
+const FIRMWARE_TYPE_TOOLTIPS = {
+  "companion-wifi": "Use this for Wi-Fi-connected companion devices. It stays closest to upstream MeshCore and adds the EastMesh Wi-Fi rescue/configuration commands.",
+  "repeater-bridge-espnow": "Use this when you need a plain upstream-style repeater ESP-NOW bridge without MQTT uplink or the EastMesh web panel.",
+  "repeater-mqtt": "Use this for a Wi-Fi repeater that should publish to an MQTT broker and, on supported ESP32 boards, offer the optional local web panel for setup and troubleshooting.",
+  "repeater-mqtt-bridge": "Use this when one repeater needs both MQTT uplink and ESP-NOW bridge duties, including bridge channel/secret controls for keeping the bridge aligned with Wi-Fi.",
+};
+
 const RELEASE_NOTES_URLS = [
   "./firmwares/release-notes.yml",
   "https://raw.githubusercontent.com/xJARiD/MeshCore-EastMesh/main/release-notes.yml",
@@ -560,6 +568,13 @@ function renderReleaseNotesForSelection() {
   }
 }
 
+function refreshFirmwareTooltip() {
+  const firmwareId = normalizeFirmwareId(firmwareSelect.value);
+  const tooltip = FIRMWARE_TYPE_TOOLTIPS[firmwareId] ?? "";
+  firmwareSelect.title = tooltip;
+  firmwareTooltip.textContent = tooltip;
+}
+
 function refreshImageTypes() {
   if (!firmwareCatalog?.boards) {
     setOptions(imageTypeSelect, []);
@@ -652,6 +667,7 @@ function populateFirmwareSelect() {
 
   const firmwareOptions = [...firmwareOptionsById.values()].sort((a, b) => a.label.localeCompare(b.label));
   setOptions(firmwareSelect, firmwareOptions, findDefaultFirmwareOptionValue(firmwareOptions));
+  refreshFirmwareTooltip();
   refreshBoards();
 }
 
@@ -706,7 +722,10 @@ async function loadReleaseNotes() {
 }
 
 boardSelect.addEventListener("change", refreshVersions);
-firmwareSelect.addEventListener("change", refreshBoards);
+firmwareSelect.addEventListener("change", () => {
+  refreshFirmwareTooltip();
+  refreshBoards();
+});
 versionSelect.addEventListener("change", () => {
   refreshImageTypes();
   renderReleaseNotesForSelection();
